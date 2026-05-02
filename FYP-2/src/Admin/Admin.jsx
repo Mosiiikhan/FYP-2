@@ -3,17 +3,15 @@ import { useNavigate, useLocation } from 'react-router-dom';
 
 const Admin = () => {
   const navigate = useNavigate();
-  const location = useLocation(); // 👇 Active button check krny k liye ye add kiya
+  const location = useLocation();
 
-  // --- 1. FUNCTIONS (Aapke Purane Functions Wapis) ---
+  // --- 1. FUNCTIONS ---
   const handleLogout = () => {
     localStorage.clear();
     navigate('/'); 
   };
 
   const goToCalendar = () => {
-    // 👇 Change: Isay '/admin-calendar' ki bajaye '/admin' kiya hai
-    // Taake ye wapis wahan le jaye jahan Calendar default load hua tha.
     navigate('/admin'); 
   };
 
@@ -25,12 +23,17 @@ const Admin = () => {
     navigate("/reschedule-saturdays");
   };
 
-  // --- 2. STYLES ---
+  // 👇 Naya function: Islamic Adjustment page pr jany k liye
+  const goToIslamicAdjust = () => {
+    navigate("/admin/islamic-adjust");
+  };
+
+  // --- 2. STYLES (Aapke original styles preserved hain) ---
   const styles = {
     container: {
       width: '260px',
       height: '100%',
-      backgroundColor: '#00645c', // DataCell wala same color (Consistency k liye)
+      backgroundColor: '#00645c',
       display: 'flex',
       flexDirection: 'column',
       padding: '20px',
@@ -54,8 +57,6 @@ const Admin = () => {
       gap: '15px',
       flex: 1
     },
-    
-    // 👇 Base Style for Buttons (Aapka purana style)
     sidebarBtn: {
       padding: '12px 15px',
       fontSize: '15px',
@@ -68,9 +69,8 @@ const Admin = () => {
       gap: '12px',
       transition: '0.3s',
       fontWeight: '500',
-      width: '100%' // Ensure full width
+      width: '100%' 
     },
-
     logoutBtn: {
       padding: '12px',
       backgroundColor: '#d32f2f',
@@ -84,15 +84,13 @@ const Admin = () => {
     }
   };
 
-  // 👇 Helper: Ye check karega k konsa button Active hai aur color change karega
   const getActiveStyle = (path) => {
-    // Agar path match kare, YA hum '/admin' par hain aur Calendar button check ho rha hai
     const isActive = location.pathname === path || (path === '/admin' && location.pathname === '/admin');
     
     return {
-      ...styles.sidebarBtn, // Purana style
-      backgroundColor: isActive ? 'white' : 'transparent', // Active ho to White
-      color: isActive ? '#00645c' : 'white', // Text color change
+      ...styles.sidebarBtn,
+      backgroundColor: isActive ? 'white' : 'transparent',
+      color: isActive ? '#00645c' : 'white',
       fontWeight: isActive ? 'bold' : '500'
     };
   };
@@ -101,13 +99,10 @@ const Admin = () => {
   return (
     <div style={styles.container}>
       
-      {/* Header */}
       <div style={styles.header}>Admin Dashboard</div>
 
-      {/* Menu Links */}
       <div style={styles.menu}>
         
-        {/* 1. View Calendar (Ab ye Active/Highlight b hoga aur sahi navigate b karega) */}
         <button 
           style={getActiveStyle('/admin')} 
           onClick={goToCalendar}
@@ -115,7 +110,6 @@ const Admin = () => {
           <span>📅</span> View Calendar
         </button>
 
-        {/* 2. Holidays */}
         <button 
           style={getActiveStyle('/emergency-holidays')} 
           onClick={goToHolidays}
@@ -123,7 +117,6 @@ const Admin = () => {
           <span>🚨</span> Manage Holidays
         </button>
 
-        {/* 3. Reschedule */}
         <button 
           style={getActiveStyle('/reschedule-saturdays')} 
           onClick={goToReschedule}
@@ -131,9 +124,16 @@ const Admin = () => {
           <span>🔄</span> Reschedule Sat
         </button>
 
+        {/* 👇 Naya Button: Islamic Adjustment (Preserving existing style logic) */}
+        <button 
+          style={getActiveStyle('/admin/islamic-adjust')} 
+          onClick={goToIslamicAdjust}
+        >
+          <span>🌙</span> Islamic Adjust
+        </button>
+
       </div>
 
-      {/* Logout */}
       <button style={styles.logoutBtn} onClick={handleLogout}>
         🚪 LogOut
       </button>

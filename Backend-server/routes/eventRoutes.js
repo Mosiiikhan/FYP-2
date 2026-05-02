@@ -2,23 +2,31 @@ const express = require('express');
 const router = express.Router();
 const eventController = require('../controllers/datacell/eventController'); 
 
-// --- Purane Routes (Pehle se maujood) ---
+// --- 1. Purane Basic Routes (Events & Societies) ---
 router.get('/societies', eventController.getSocieties);
 router.get('/all', eventController.getAllEvents);
 router.post('/add', eventController.saveEvent);
 router.delete('/delete/:id', eventController.deleteEvent);
+router.put('/update/:id', eventController.updateEvent); // Edit function k liye
 
 // ======================================================
-// ✅ NAYE ROUTES (Societies Subscription k liye)
+// ✅ 2. NAYE ROUTES (Societies Subscription Logic)
 // ======================================================
 
-// 1. Dropdown mein status check karne k liye
+// Dropdown mein status check karne k liye
 router.get('/societies-status', eventController.getSocietiesStatus);
 
-// 2. Subscribe karne k liye
+// Subscribe karne k liye
 router.post('/subscribe', eventController.subscribeSociety);
 
-// 3. Unsubscribe karne k liye
+// Unsubscribe karne k liye
 router.post('/unsubscribe', eventController.unsubscribeSociety);
+
+// ======================================================
+// 🎯 3. CHAIRPERSON FOCUS ROUTE (Society Identity)
+// ======================================================
+
+// Chairperson jab sidebar se color select karke lock karega toh ye chalega
+router.post('/lock-color', eventController.lockSocietyColor);
 
 module.exports = router;

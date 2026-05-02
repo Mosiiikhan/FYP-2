@@ -36,6 +36,18 @@ const Login1 = () => {
             localStorage.setItem("userRole", userRole); 
             localStorage.setItem("username", data.user.username);
             localStorage.setItem("userId", data.user.user_id); 
+
+            // --- CHAIRPERSON FOCUS: Saving extra info for color and naming logic ---
+            // Hum societyId aur assignedColor ko bhi save kar rahe hain taake Dashboard par use ho sakay
+            if (userRole === 'chairperson' || userRole === 'cp') {
+                localStorage.setItem("societyId", data.user.society_id);
+                localStorage.setItem("assignedColor", data.user.assigned_color);
+                
+                // ✅ YE LINE ADD KI HAI: Society ka actual name save karne ke liye
+                // Backend se agar society_name aa raha hai toh wo save hoga, warna fallback ke liye username
+                localStorage.setItem("societyName", data.user.society_name || data.user.username);
+            }
+            // -----------------------------------------------------------
             
             // 4. Navigation Logic (Purely based on userRole)
             if (userRole === 'admin') {
@@ -70,7 +82,7 @@ const Login1 = () => {
     }
   };
 
-  // --- STYLES (Your Original 195-line Style Structure Preserved) ---
+  // --- STYLES (Original Structure Preserved) ---
   const styles = {
     container: {
       position: 'fixed',

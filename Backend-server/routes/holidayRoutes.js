@@ -1,13 +1,20 @@
 const express = require('express');
 const router = express.Router();
 
-// ✅ Path ab bilkul sahi hai kyunke file 'controllers' folder mein hai
-const holidayController = require('../controllers/holidayController');
+// Existing Controllers
+const emergencyholidayController = require('../controllers/Admin/emergencyholidayController');
 
-// 1. Get definitions for dropdown
-router.get('/definitions', holidayController.getDefinitions);
+// 1. Naya Islamic Holiday Controller Import karein
+const IslamicHolidaysController = require('../controllers/Admin/IslamicHolidaysController');
 
-// 2. Save new holiday record
-router.post('/save', holidayController.saveHoliday);
+// --- Emergency Holiday Routes ---
+router.get('/', emergencyholidayController.getAllHolidays);
+router.post('/add', emergencyholidayController.addHoliday);
+router.put('/update/:id', emergencyholidayController.updateHoliday);
+router.delete('/:id', emergencyholidayController.deleteHoliday);
+
+// --- 2. Islamic Holiday Adjustment Route ---
+// Admin jab dashboard se adjustment karega toh is route par hit karega
+router.put('/update-hijri-offset', IslamicHolidaysController.updateIslamicOffset);
 
 module.exports = router;

@@ -7,21 +7,24 @@ exports.loginUser = async (req, res) => {
 
         const pool = await connectDB();
         
-        // ✅ Smart Query: Check both Users.username OR Students.roll_no
-       // Backend Controller (authController.js)
-const query = `
-    SELECT U.user_id, U.username, U.role, S.roll_no, S.section 
-    FROM Users U
-    LEFT JOIN Students S ON U.user_id = S.user_id
-    WHERE (
-        -- Condition 1: Agar student hai toh sirf Roll No match kare
-        (U.role = 'Student' AND S.roll_no = @user)
-        OR 
-        -- Condition 2: Agar Admin/Datacell/CP hai toh sirf Username match kare
-        (U.role != 'Student' AND U.username = @user)
-    )
-    AND U.password = @pass
-`;
+        // ✅ Smart Query: Adding Societies Join without disturbing Students/Admin logic
+        const query = `
+            SELECT 
+                U.user_id, U.username, U.role, 
+                S.roll_no, S.section, 
+                Soc.society_id, Soc.assigned_color
+            FROM Users U
+            LEFT JOIN Students S ON U.user_id = S.user_id
+            LEFT JOIN Societies Soc ON U.society_id = Soc.society_id
+            WHERE (
+                -- Condition 1: Agar student hai toh sirf Roll No match kare
+                (U.role = 'Student' AND S.roll_no = @user)
+                OR 
+                -- Condition 2: Agar Admin/Datacell/CP hai toh sirf Username match kare
+                (U.role != 'Student' AND U.username = @user)
+            )
+            AND U.password = @pass
+        `;
 
         const result = await pool.request()
             .input('user', sql.VarChar, username)
@@ -32,7 +35,7 @@ const query = `
             console.log("✅ User Found!");
             res.status(200).json({
                 message: "Login Successful",
-                user: result.recordset[0] // Is mein user_id, role, aur student info bhi chali jaye gi
+                user: result.recordset[0] // Is mein ab user_id, role, society_id aur assigned_color bhi jaye ga
             });
         } else {
             console.log("❌ Invalid Credentials");
