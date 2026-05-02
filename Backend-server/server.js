@@ -12,13 +12,10 @@ const saturdayRoutes = require('./routes/saturdayRoutes');
 const eventRoutes = require('./routes/eventRoutes'); 
 const holidayRoutes = require('./routes/holidayRoutes'); 
 const meetingRoutes = require('./routes/meetingRoutes'); // ✅ Added: Meeting Routes for AD
-<<<<<<< HEAD
 // Pehle import karein
 const islamicRoutes = require('./routes/islamicHolidaysRoutes');
 
 
-=======
->>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
 
 const app = express();
 
@@ -52,11 +49,8 @@ app.use('/api/events', eventRoutes);
 app.use('/api/holidays', holidayRoutes); 
 app.use('/api/meetings', meetingRoutes); // ✅ Added: Registered Meeting API for AD
 
-<<<<<<< HEAD
 app.use('/api/islamic', islamicRoutes);
 
-=======
->>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
 // ✅ 6. Global Error Handling Middleware
 app.use((err, req, res, next) => {
     console.error("❌ Server Error:", err.stack);

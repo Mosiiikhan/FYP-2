@@ -23,13 +23,10 @@ import ChairPerson from './SocietyCP/ChairPerson';
 import ManageEvents from './SocietyCP/ManageEvents';
 import StudentDashboard from './Student/Student';
 import ADDashboard from './AssistantDirector/ADDashboard';
-<<<<<<< HEAD
 import IslamicAdjustment from './Admin/IslamicAdjustment'; // Path check kar lein
 
 
 
-=======
->>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
 
 // 🛡️ SECURITY GUARD
 const RoleBasedRoute = ({ allowedRoles }) => {
@@ -59,10 +56,7 @@ function App() {
                 <Route path="/reschedule-saturdays" element={<RescheduleSaturdays/>} />
                 <Route path="/emergency-holidays" element={<EmergencyHolidays/>} />
                 <Route path="/admin-calendar" element={<ViewCalendar />} />
-<<<<<<< HEAD
                 <Route path="/admin/islamic-adjust" element={<IslamicAdjustment />} />
-=======
->>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
             </Route>
         </Route>
 
