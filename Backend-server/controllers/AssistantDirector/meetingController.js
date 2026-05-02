@@ -1,6 +1,9 @@
 const { connectDB, sql } = require('../../config/db');
 
+<<<<<<< HEAD
 // 1. CREATE: Meeting add karne ka logic
+=======
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
 const addMeeting = async (req, res) => {
     try {
         const { 
@@ -10,20 +13,36 @@ const addMeeting = async (req, res) => {
 
         const pool = await connectDB(); 
         
+<<<<<<< HEAD
         // Fix: Khali string ko null handle karna zaroori hai
         const formattedDate = (date && date !== "") ? date : null;
         const formattedDeadlineDate = (deadlineDate && deadlineDate !== "") ? deadlineDate : null;
+=======
+        // Time parameters ko validate/format karna
+        const formattedTime = time ? time : null;
+        const formattedDeadlineTime = deadlineTime ? deadlineTime : null;
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
 
         await pool.request()
             .input('title', sql.VarChar, title)
             .input('sem', sql.VarChar, semester)
             .input('deg', sql.VarChar, targetGroup)
+<<<<<<< HEAD
             .input('m_date', sql.Date, formattedDate)
             .input('m_time', sql.VarChar, time || null) 
             .input('venue', sql.VarChar, venue)
             .input('desc', sql.NVarChar, description || null)
             .input('d_date', sql.Date, formattedDeadlineDate)
             .input('d_time', sql.VarChar, deadlineTime || null)
+=======
+            .input('m_date', sql.Date, date)
+            // .input('m_time', sql.Time, formattedTime) ki jagah VarChar use karein agar Time crash kar raha ho
+            .input('m_time', sql.VarChar, formattedTime) 
+            .input('venue', sql.VarChar, venue)
+            .input('desc', sql.NVarChar, description || null)
+            .input('d_date', sql.Date, deadlineDate || null)
+            .input('d_time', sql.VarChar, formattedDeadlineTime || null)
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
             .input('link', sql.NVarChar, attachmentLink || null)
             .query(`
                 INSERT INTO FYP_Meetings 
@@ -39,6 +58,7 @@ const addMeeting = async (req, res) => {
     }
 };
 
+<<<<<<< HEAD
 // 2. READ: Saari meetings fetch karne ke liye
 const getMeetings = async (req, res) => {
     try {
@@ -111,3 +131,6 @@ const updateMeeting = async (req, res) => {
 };
 
 module.exports = { addMeeting, getMeetings, deleteMeeting, updateMeeting };
+=======
+module.exports = { addMeeting };
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4

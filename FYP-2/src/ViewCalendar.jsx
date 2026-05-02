@@ -80,8 +80,12 @@ const ViewCalendar = () => {
             type: 'society',
             start: s.date ? s.date.split('T')[0] : "",
             end: s.date ? s.date.split('T')[0] : "",
+<<<<<<< HEAD
             // ✅ Dynamic Color from Backend (Society Locked Color)
             color: s.color || s.color_code || '#e810b2', 
+=======
+            color: '#e810b2', 
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
             venue: s.venue,
             description: s.description,
             societyName: s.society_name,
@@ -181,7 +185,11 @@ const ViewCalendar = () => {
     if (!day) return { style: styles.emptyCell, title: "" };
     const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     
+<<<<<<< HEAD
     // 1. Emergency Holiday
+=======
+    // 1. Emergency Holiday (Highest Priority)
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
     const isEmergency = emergencyHolidays.find(h => dateStr >= h.start_date.split('T')[0] && dateStr <= h.end_date.split('T')[0]);
     if (isEmergency) return { style: { ...styles.dayCell, backgroundColor: 'black', color: 'white', fontWeight: 'bold' }, title: isEmergency.reason };
     
@@ -189,7 +197,11 @@ const ViewCalendar = () => {
     const isSaturdayWork = rescheduledSaturdays.find(s => s.working_date.split('T')[0] === dateStr);
     if (isSaturdayWork) return { style: { ...styles.dayCell, backgroundColor: '#007bff', color: 'white', fontWeight: 'bold' }, title: "Working Saturday" };
     
+<<<<<<< HEAD
     // 3. Society Events (Using Locked Color)
+=======
+    // 3. Society & Sports Events
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
     const isSociety = events.find(e => e.type === 'society' && e.start === dateStr);
     if (isSociety) return { style: { ...styles.dayCell, backgroundColor: isSociety.color, color: 'white' }, title: isSociety.title };
     
@@ -199,6 +211,10 @@ const ViewCalendar = () => {
     // 4. Exams & Holidays
     let highlightEvent = events.find(e => dateStr >= e.start && dateStr <= e.end && (e.type.includes("exam") || e.type === "holiday"));
     
+<<<<<<< HEAD
+=======
+    // 5. Semester Logic (Fix: Highlight ONLY on Start Date)
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
     const semStart = events.find(e => e.type === "semester" && e.start === dateStr);
 
     let style = { ...styles.dayCell, backgroundColor: 'white', color: '#333' };
@@ -230,7 +246,11 @@ const ViewCalendar = () => {
       <div style={styles.legendGrid}>
         <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#dc3545'}}></div><span>Exams (Mid/Final)</span></div>
         <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#87CEEB'}}></div><span>National Holidays</span></div>
+<<<<<<< HEAD
         <div style={styles.legendItem}><div style={{...styles.colorBox, background: 'linear-gradient(45deg, #e810b2, #3498DB)'}}></div><span>Societies (Custom Colors)</span></div>
+=======
+        <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#e810b2'}}></div><span>Societies Events</span></div>
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
         <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#007bff'}}></div><span>Working Saturday</span></div>
         <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#f39c12'}}></div><span>Student Week / Sports Week</span></div>
         <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'black'}}></div><span>Emergency Closure</span></div>
@@ -356,10 +376,28 @@ const ViewCalendar = () => {
                     <div style={styles.infoRow}><FaCalendarAlt style={styles.rowIcon} /> <div><strong>Date:</strong> <span>{selectedDateData.date}</span></div></div>
                     <div style={styles.infoRow}><FaExclamationTriangle style={styles.rowIcon} /> <div><strong>Reason:</strong> <span>{selectedDateData.reason}</span></div></div>
                     <div style={styles.infoRow}><FaCalendarWeek style={styles.rowIcon} /> <div><strong>Replacement For:</strong> <span>{selectedDateData.replacementDay}</span></div></div>
+<<<<<<< HEAD
                   </>
                 )}
 
                 {selectedDateData.isSociety && (
+=======
+                    {selectedDateData.additionalInfo && <div style={styles.infoRow}><FaStickyNote style={styles.rowIcon} /> <div><strong>Additional Info:</strong> <span>{selectedDateData.additionalInfo}</span></div></div>}
+                  </>
+                )}
+
+                {selectedDateData.isSportsEvent && (
+                  <>
+                    <div style={styles.infoRow}><FaFlagCheckered style={styles.rowIcon} /> <div><strong>Event:</strong> <span>{selectedDateData.eventName}</span></div></div>
+                    <div style={styles.infoRow}><FaCalendarAlt style={styles.rowIcon} /> <div><strong>Date:</strong> <span>{selectedDateData.date}</span></div></div>
+                    <div style={styles.infoRow}><FaClock style={styles.rowIcon} /> <div><strong>Time:</strong> <span>{selectedDateData.eventTime}</span></div></div>
+                    <div style={styles.infoRow}><FaMapMarkerAlt style={styles.rowIcon} /> <div><strong>Venue:</strong> <span>{selectedDateData.eventVenue}</span></div></div>
+                    <div style={styles.infoRow}><FaUsers style={styles.rowIcon} /> <div><strong>Organized By:</strong> <span>{selectedDateData.organizingSociety}</span></div></div>
+                  </>
+                )}
+
+                {selectedDateData.isSociety && !selectedDateData.isSportsEvent && (
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
                   <>
                     <div style={styles.infoRow}><FaCalendarAlt style={styles.rowIcon} /> <div><strong>Date:</strong> <span>{selectedDateData.date}</span></div></div>
                     <div style={styles.infoRow}><FaClock style={styles.rowIcon} /> <div><strong>Time:</strong> <span>{selectedDateData.startTime}</span></div></div>
@@ -367,7 +405,28 @@ const ViewCalendar = () => {
                     <div style={styles.infoRow}><FaUsers style={styles.rowIcon} /> <div><strong>Society:</strong> <span>{selectedDateData.societyName}</span></div></div>
                   </>
                 )}
+<<<<<<< HEAD
               </div>
+=======
+
+                {selectedDateData.isEmergency && (
+                  <>
+                    <div style={styles.infoRow}><FaCalendarAlt style={styles.rowIcon} /> <div><strong>Date:</strong> <span>{selectedDateData.date}</span></div></div>
+                    <div style={styles.infoRow}><FaExclamationTriangle style={styles.rowIcon} /> <div><strong>Reason:</strong> <span>{selectedDateData.description}</span></div></div>
+                  </>
+                )}
+              </div>
+              
+              {selectedDateData.isExam && (
+                <div style={styles.sittingPlanSection}>
+                  <h4 style={styles.descTitle}><FaExclamationTriangle /> Sitting Plan</h4>
+                  <div style={styles.sittingPlanPlaceholder}>
+                    <p style={styles.placeholderText}>📍 <strong>Venue:</strong> {selectedDateData.venue || "To be announced"}</p>
+                    <p style={styles.noteText}><em>Note: Detailed seat allocation will be available soon.</em></p>
+                  </div>
+                </div>
+              )}
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
             </div>
 
             <button style={{...styles.closeBtn, background: selectedDateData.color || '#05864e'}} onClick={() => setIsModalOpen(false)}>Dismiss</button>
@@ -418,12 +477,27 @@ const styles = {
   headerInfo: { display: 'flex', flexDirection: 'column', gap: '8px' },
   typeBadge: { padding: '4px 10px', color: 'white', borderRadius: '20px', fontSize: '10px', fontWeight: 'bold', width: 'fit-content' },
   modalTitle: { margin: 0, fontSize: '20px', color: '#1e293b', fontWeight: '700' },
+<<<<<<< HEAD
   closeIcon: { cursor: 'pointer', fontSize: '20px', color: '#94a3b8' },
+=======
+  closeIcon: { cursor: 'pointer', fontSize: '20px', color: '#94a3b8', transition: 'color 0.2s' },
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
   modalBody: { padding: '20px' },
   infoGridMain: { display: 'flex', flexDirection: 'column', gap: '15px' },
   infoRow: { display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#475569', fontSize: '14px' },
   rowIcon: { marginTop: '3px', color: '#64748b', fontSize: '16px' },
+<<<<<<< HEAD
   closeBtn: { width: '100%', padding: '14px', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' },
+=======
+  descSection: { marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #e2e8f0' },
+  descTitle: { margin: '0 0 8px 0', fontSize: '14px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' },
+  descText: { fontSize: '13px', color: '#64748b', lineHeight: '1.6', margin: 0, fontStyle: 'italic' },
+  closeBtn: { width: '100%', padding: '14px', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', letterSpacing: '0.5px' },
+  sittingPlanSection: { marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #e2e8f0' },
+  sittingPlanPlaceholder: { backgroundColor: '#fff5f5', padding: '12px', borderRadius: '8px', border: '1px solid #fed7d7' },
+  placeholderText: { fontSize: '13px', color: '#c53030', margin: '0 0 8px 0' },
+  noteText: { fontSize: '12px', color: '#718096', margin: 0 }
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
 };
 
 export default ViewCalendar;

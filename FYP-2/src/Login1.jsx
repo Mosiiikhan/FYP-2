@@ -36,6 +36,7 @@ const Login1 = () => {
             localStorage.setItem("userRole", userRole); 
             localStorage.setItem("username", data.user.username);
             localStorage.setItem("userId", data.user.user_id); 
+<<<<<<< HEAD
 
             // --- CHAIRPERSON FOCUS: Saving extra info for color and naming logic ---
             // Hum societyId aur assignedColor ko bhi save kar rahe hain taake Dashboard par use ho sakay
@@ -48,6 +49,8 @@ const Login1 = () => {
                 localStorage.setItem("societyName", data.user.society_name || data.user.username);
             }
             // -----------------------------------------------------------
+=======
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
             
             // 4. Navigation Logic (Purely based on userRole)
             if (userRole === 'admin') {
@@ -82,7 +85,11 @@ const Login1 = () => {
     }
   };
 
+<<<<<<< HEAD
   // --- STYLES (Original Structure Preserved) ---
+=======
+  // --- STYLES (Your Original 195-line Style Structure Preserved) ---
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
   const styles = {
     container: {
       position: 'fixed',

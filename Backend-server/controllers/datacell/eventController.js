@@ -1,7 +1,12 @@
 const { sql } = require('../../config/db');
+<<<<<<< HEAD
 const IslamicController = require('../Admin/IslamicHolidaysController');
 
 // 1. GET ALL SOCIETIES
+=======
+
+// 1. GET SOCIETIES (For Dropdown)
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
 exports.getSocieties = async (req, res) => {
     try {
         const pool = req.app.locals.db;
@@ -12,6 +17,7 @@ exports.getSocieties = async (req, res) => {
     }
 };
 
+<<<<<<< HEAD
 // 2. SAVE EVENT (Updated with Visibility and Society ID)
 exports.saveEvent = async (req, res) => {
     try {
@@ -27,6 +33,17 @@ exports.saveEvent = async (req, res) => {
 
         const transaction = new sql.Transaction(pool);
         await transaction.begin();
+=======
+// 2. SAVE EVENT (Linking Academic_Calendar & Event_Societies)
+exports.saveEvent = async (req, res) => {
+    try {
+        const { society_id, title, date, description } = req.body;
+        const pool = req.app.locals.db;
+
+        const transaction = new sql.Transaction(pool);
+        await transaction.begin();
+
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
         try {
             const eventRequest = new sql.Request(transaction);
             const eventResult = await eventRequest
@@ -34,6 +51,7 @@ exports.saveEvent = async (req, res) => {
                 .input('type', sql.NVarChar, 'Society Event')
                 .input('sDate', sql.Date, date)
                 .input('desc', sql.NVarChar, description || null)
+<<<<<<< HEAD
                 .input('color', sql.NVarChar, societyColor) 
                 .input('vis', sql.VarChar, visibility || 'public')
                 .input('soc_id', sql.Int, society_id)
@@ -47,6 +65,15 @@ exports.saveEvent = async (req, res) => {
             const newEventId = eventResult.recordset[0].event_id;
 
             // Mapping table Event_Societies mein entry
+=======
+                .input('color', sql.NVarChar, '#e810b2') 
+                .query(`INSERT INTO Academic_Calendar (event_title, event_type, start_date, end_date, description, color_code) 
+                        OUTPUT INSERTED.event_id 
+                        VALUES (@title, @type, @sDate, @sDate, @desc, @color)`);
+
+            const newEventId = eventResult.recordset[0].event_id;
+
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
             const linkRequest = new sql.Request(transaction);
             await linkRequest
                 .input('eId', sql.Int, newEventId)
@@ -60,10 +87,15 @@ exports.saveEvent = async (req, res) => {
             throw innerErr;
         }
     } catch (err) {
+<<<<<<< HEAD
+=======
+        console.error("❌ Save Error:", err.message);
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
         res.status(500).json({ success: false, message: "SQL Error: " + err.message });
     }
 };
 
+<<<<<<< HEAD
 // 3. UPDATE EVENT (Updated with Visibility)
 exports.updateEvent = async (req, res) => {
     try {
@@ -93,10 +125,17 @@ exports.updateEvent = async (req, res) => {
 // 4. GET ALL EVENTS (Smart Filtering for Students)
 exports.getAllEvents = async (req, res) => {
     try {
+=======
+// 3. GET ALL (FINAL FIX: Fixed Role-Based Filtering)
+exports.getAllEvents = async (req, res) => {
+    try {
+        // Frontend se Role pakarna (Jo tumhari image mein 'admin' aa raha hai)
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
         const { studentId, role } = req.query; 
         const pool = req.app.locals.db;
         let request = pool.request();
         let query = "";
+<<<<<<< HEAD
         
         if (role === 'student' && studentId && studentId !== 'undefined') {
             request.input('sid', sql.Int, studentId);
@@ -138,10 +177,53 @@ exports.getAllEvents = async (req, res) => {
 };
 
 // 5. DELETE EVENT
+=======
+
+        // DEBUGGING: Ye line VS Code Terminal mein check karna refresh ke baad
+        console.log(`Backend Hit! ID: ${studentId}, Role: ${role}`);
+
+        // ✅ LOGIC: Sirf tab filter karo jab role 'student' ho.
+        // Agar role 'admin', 'chairperson', ya 'datacell' hai, to 'else' wala part chalega.
+        if (role === 'student' && studentId && studentId !== 'undefined') {
+            request.input('sid', sql.Int, studentId);
+            query = `
+                SELECT AC.event_id as id, AC.event_title as title, AC.start_date as date, 
+                       AC.description, S.society_name
+                FROM Academic_Calendar AC
+                JOIN Event_Societies ES ON AC.event_id = ES.event_id
+                JOIN Societies S ON ES.society_id = S.society_id
+                JOIN User_Event_Preferences UEP ON S.society_name = UEP.event_type
+                WHERE AC.event_type = 'Society Event'
+                AND UEP.user_id = @sid
+                ORDER BY AC.start_date DESC
+            `;
+        } else {
+            // ✅ ADMIN VIEW: Sab kuch dikhao baghair kisi filter ke
+            query = `
+                SELECT AC.event_id as id, AC.event_title as title, AC.start_date as date, 
+                       AC.description, S.society_name
+                FROM Academic_Calendar AC
+                JOIN Event_Societies ES ON AC.event_id = ES.event_id
+                JOIN Societies S ON ES.society_id = S.society_id
+                WHERE AC.event_type = 'Society Event'
+                ORDER BY AC.start_date DESC
+            `;
+        }
+
+        const result = await request.query(query);
+        res.status(200).json(result.recordset);
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// 4. DELETE EVENT 
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
 exports.deleteEvent = async (req, res) => {
     try {
         const { id } = req.params;
         const pool = req.app.locals.db;
+<<<<<<< HEAD
         const transaction = new sql.Transaction(pool);
         await transaction.begin();
         try {
@@ -159,11 +241,40 @@ exports.deleteEvent = async (req, res) => {
 };
 
 // 6. GET SOCIETIES STATUS
+=======
+
+        const transaction = new sql.Transaction(pool);
+        await transaction.begin();
+
+        try {
+            await transaction.request()
+                .input('id', sql.Int, id)
+                .query("DELETE FROM Event_Societies WHERE event_id = @id");
+
+            await transaction.request()
+                .input('id', sql.Int, id)
+                .query("DELETE FROM Academic_Calendar WHERE event_id = @id");
+
+            await transaction.commit();
+            res.status(200).json({ success: true, message: "Event deleted successfully! 🗑️" });
+        } catch (innerErr) {
+            await transaction.rollback();
+            throw innerErr;
+        }
+    } catch (err) {
+        console.error("❌ Delete Error:", err.message);
+        res.status(500).json({ success: false, message: "Delete Error: " + err.message });
+    }
+};
+
+// 5. GET SOCIETIES STATUS 
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
 exports.getSocietiesStatus = async (req, res) => {
     try {
         const { studentId } = req.query;
         const pool = req.app.locals.db;
         const allSoc = await pool.request().query("SELECT society_id, society_name FROM Societies ORDER BY society_name ASC");
+<<<<<<< HEAD
         const mySubs = await pool.request().input('uid', sql.Int, studentId).query("SELECT event_type FROM User_Event_Preferences WHERE user_id = @uid");
         res.status(200).json({ allSocieties: allSoc.recordset, subscribedNames: mySubs.recordset.map(row => row.event_type) });
     } catch (err) { 
@@ -172,10 +283,27 @@ exports.getSocietiesStatus = async (req, res) => {
 };
 
 // 7. SUBSCRIPTION / UNSUBSCRIPTION
+=======
+        const mySubs = await pool.request()
+            .input('uid', sql.Int, studentId)
+            .query("SELECT event_type FROM User_Event_Preferences WHERE user_id = @uid");
+
+        res.status(200).json({
+            allSocieties: allSoc.recordset,
+            subscribedNames: mySubs.recordset.map(row => row.event_type)
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// 6. SUBSCRIBE 
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
 exports.subscribeSociety = async (req, res) => {
     try {
         const { student_id, society_name } = req.body;
         const pool = req.app.locals.db;
+<<<<<<< HEAD
         await pool.request().input('uid', sql.Int, student_id).input('etype', sql.NVarChar, society_name).query("INSERT INTO User_Event_Preferences (user_id, event_type) VALUES (@uid, @etype)");
         res.status(201).json({ success: true, message: "Subscribed! ✅" });
     } catch (err) { 
@@ -183,10 +311,24 @@ exports.subscribeSociety = async (req, res) => {
     }
 };
 
+=======
+        await pool.request()
+            .input('uid', sql.Int, student_id)
+            .input('etype', sql.NVarChar, society_name)
+            .query("INSERT INTO User_Event_Preferences (user_id, event_type) VALUES (@uid, @etype)");
+        res.status(201).json({ success: true, message: "Subscribed successfully! ✅" });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// 7. UNSUBSCRIBE 
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
 exports.unsubscribeSociety = async (req, res) => {
     try {
         const { student_id, society_name } = req.body;
         const pool = req.app.locals.db;
+<<<<<<< HEAD
         await pool.request().input('uid', sql.Int, student_id).input('etype', sql.NVarChar, society_name).query("DELETE FROM User_Event_Preferences WHERE user_id = @uid AND event_type = @etype");
         res.status(200).json({ success: true, message: "Unsubscribed! 🗑️" });
     } catch (err) { 
@@ -216,5 +358,14 @@ exports.lockSocietyColor = async (req, res) => {
         res.status(200).json({ success: true, message: "Color locked! ✨" });
     } catch (err) { 
         res.status(500).json({ success: false, message: err.message }); 
+=======
+        await pool.request()
+            .input('uid', sql.Int, student_id)
+            .input('etype', sql.NVarChar, society_name)
+            .query("DELETE FROM User_Event_Preferences WHERE user_id = @uid AND event_type = @etype");
+        res.status(200).json({ success: true, message: "Unsubscribed successfully! 🗑️" });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+>>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
     }
 };
