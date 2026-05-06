@@ -1,13 +1,13 @@
 // 🚩 Path check: Ensure correct path to your DB config
 const { sql } = require('../../config/db');
-
+// Notification Controller ko import kiya
+const NotifController = require('../notificationController');
 // 1. GET ALL HOLIDAYS
 exports.getAllHolidays = async (req, res) => {
     try {
         const pool = req.app.locals.db;
         if (!pool) throw new Error("Database pool not found in app.locals");
 
-        // ✅ Table name updated to Emergency_Holidays (as per your SQL image)
         const result = await pool.request()
             .query("SELECT * FROM Emergency_Holidays ORDER BY start_date DESC");
         
@@ -18,7 +18,7 @@ exports.getAllHolidays = async (req, res) => {
     }
 };
 
-// 2. ADD NEW HOLIDAY
+// 2. ADD NEW HOLIDAY (With Universal Notification Trigger)
 exports.addHoliday = async (req, res) => {
     try {
         const { reason, start_date, end_date } = req.body;
@@ -28,7 +28,6 @@ exports.addHoliday = async (req, res) => {
             return res.status(400).json({ success: false, message: "All fields are required" });
         }
 
-        // ✅ Table name updated to Emergency_Holidays
         await pool.request()
             .input('reason', sql.NVarChar, reason)
             .input('start', sql.Date, start_date)
@@ -37,7 +36,22 @@ exports.addHoliday = async (req, res) => {
                     VALUES (@reason, @start, @end)`);
 
         console.log("✅ Holiday Added to DB:", reason);
-        res.status(201).json({ success: true, message: "Holiday added successfully! ✅" });
+
+        // --- UNIVERSAL NOTIFICATION TRIGGER ---
+        // Hum Notification Controller ko bata rahen hain ke 'all' students ko bhej do
+        try {
+            await NotifController.createNotification(pool, {
+                senderRole: 'Admin',
+                targetType: 'all', // Sab students ke liye
+                targetValue: null,
+                title: 'Emergency Holiday Alert 📢',
+                message: `Holiday announced: ${reason} from ${start_date} to ${end_date}.`
+            });
+        } catch (notifErr) {
+            console.error("⚠️ Notification trigger failed:", notifErr.message);
+        }
+
+        res.status(201).json({ success: true, message: "Holiday added and students notified! ✅" });
     } catch (err) {
         console.error("❌ Add Error:", err.message);
         res.status(500).json({ success: false, message: err.message });
@@ -53,7 +67,6 @@ exports.updateHoliday = async (req, res) => {
 
         if (!id) return res.status(400).json({ success: false, message: "Holiday ID is required" });
 
-        // ✅ Table name updated to Emergency_Holidays
         await pool.request()
             .input('id', sql.Int, id)
             .input('reason', sql.NVarChar, reason)
@@ -78,7 +91,6 @@ exports.deleteHoliday = async (req, res) => {
 
         if (!id) return res.status(400).json({ success: false, message: "Holiday ID is required" });
 
-        // ✅ Table name updated to Emergency_Holidays
         await pool.request()
             .input('id', sql.Int, id)
             .query("DELETE FROM Emergency_Holidays WHERE emergency_id = @id");

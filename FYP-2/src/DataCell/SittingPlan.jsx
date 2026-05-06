@@ -4,98 +4,119 @@ import { useNavigate } from 'react-router-dom';
 const SittingPlan = () => {
   const navigate = useNavigate();
   const [file, setFile] = useState(null);
+  const [fileName, setFileName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  // --- Functions ---
   const handleFileChange = (e) => {
-    if (e.target.files[0]) {
-      setFile(e.target.files[0]);
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      const fileExt = selectedFile.name.split('.').pop().toLowerCase();
+      
+      if (fileExt === 'xlsx' || fileExt === 'xls' || fileExt === 'csv') {
+        setFile(selectedFile);
+        setFileName(selectedFile.name);
+        setError('');
+      } else {
+        setError('Please select an Excel file (.xlsx, .xls, or .csv)');
+        setFile(null);
+        setFileName('');
+      }
     }
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!file) {
-      alert("Please select a sitting plan file! 🪑");
+      setError("Please select a sitting plan file! 🪑");
       return;
     }
-    alert(`Success! Sitting Plan '${file.name}' uploaded.`);
-    navigate('/dashboard');
+    
+    setLoading(true);
+    setError('');
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/seating-plan/upload-seating-plan', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        alert(`✅ Success! ${result.inserted} seating records uploaded.`);
+        navigate('/dashboard');
+      } else {
+        setError(result.message || 'Upload failed. Please try again.');
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      setError('Network error. Please check your connection.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // --- Styles (White Card Theme) ---
   const styles = {
     mainContainer: {
-      // backgroundImage: "url('/bg.png')",
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
-      // position: 'fixed',
-      // top: 0, left: 0,
-      width: '100%', height: '100vh',
+      width: '100%',
+      minHeight: '100vh',
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: 'rgba(255, 255, 255, 0.5)', 
-      backgroundBlendMode: 'overlay',
-      fontFamily: "'Segoe UI', sans-serif"
+      backgroundColor: '#f5f5f5',
+      fontFamily: "'Segoe UI', sans-serif",
+      padding: '20px'
     },
     card: {
       backgroundColor: 'white',
       width: '90%',
-      maxWidth: '450px',
+      maxWidth: '500px',
       padding: '40px',
       borderRadius: '15px',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
       textAlign: 'center'
     },
-    
-    // --- Header Section (Tag) ---
     headerTitle: {
-      color: '#006400', // BIIT Green
+      color: '#006400',
       fontSize: '26px',
       fontWeight: 'bold',
-      marginBottom: '5px',
-      textTransform: 'uppercase', // Tag jaisa look dene k liye
-      letterSpacing: '1px'
+      marginBottom: '5px'
     },
     headerSub: {
       color: '#666',
       fontSize: '14px',
       marginBottom: '30px'
     },
-
-    // --- Upload Box (Simplified) ---
-    dashedBox: {
-      border: '2px dashed #006400',
-      borderRadius: '12px',
-      padding: '40px 20px',
-      backgroundColor: '#f1f8e9', // Light Green BG
-      cursor: 'pointer',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: '30px',
-      transition: '0.3s'
-    },
-    iconCircle: {
-      width: '60px', height: '60px',
-      borderRadius: '50%',
+    fileInput: {
+      width: '100%',
+      padding: '12px',
+      border: '1px solid #ddd',
+      borderRadius: '8px',
+      fontSize: '14px',
+      marginBottom: '20px',
       backgroundColor: 'white',
-      display: 'flex',
-      alignItems: 'center', 
-      justifyContent: 'center',
-      boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-      marginBottom: '15px',
-      fontSize: '28px'
+      cursor: 'pointer'
     },
-    uploadText: {
-      fontSize: '16px',
-      fontWeight: 'bold',
-      color: '#333',
-      marginBottom: '5px'
+    selectedFile: {
+      backgroundColor: '#e8f5e9',
+      padding: '10px',
+      borderRadius: '8px',
+      marginBottom: '20px',
+      fontSize: '14px',
+      color: '#006400'
     },
-    
-    // --- Action Button ---
+    errorMsg: {
+      backgroundColor: '#ffebee',
+      color: '#c62828',
+      padding: '12px',
+      borderRadius: '8px',
+      fontSize: '13px',
+      marginBottom: '20px',
+      textAlign: 'left'
+    },
     uploadBtn: {
       width: '100%',
       padding: '15px',
@@ -105,8 +126,8 @@ const SittingPlan = () => {
       borderRadius: '30px',
       fontSize: '16px',
       fontWeight: 'bold',
-      cursor: 'pointer',
-      boxShadow: '0 4px 10px rgba(0,0,0,0.2)'
+      cursor: loading ? 'not-allowed' : 'pointer',
+      opacity: loading ? 0.7 : 1
     }
   };
 
@@ -114,44 +135,34 @@ const SittingPlan = () => {
     <div style={styles.mainContainer}>
       <div style={styles.card}>
         
-        {/* Header Tag - Sirf Name */}
-        <h2 style={styles.headerTitle}>Sitting Plan</h2>
+        <h2 style={styles.headerTitle}>SITTING PLAN</h2>
         <p style={styles.headerSub}>Upload Exam Hall Arrangement</p>
 
-        {/* Upload Area */}
-        <label 
-          htmlFor="sittingPlanFile" 
-          style={styles.dashedBox}
-          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e8f5e9'}
-          onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#f1f8e9'}
-        >
-          <div style={styles.iconCircle}>🪑</div> {/* Chair Icon */}
-          
-          <div style={styles.uploadText}>
-            {file ? file.name : "Click to upload file"}
-          </div>
-          <div style={{fontSize: '12px', color: '#888'}}>
-             PDF, JPG, PNG (Max 10MB)
-          </div>
-        </label>
-
-        {/* Hidden Input */}
         <input 
-          id="sittingPlanFile" 
           type="file" 
-          accept=".pdf, .jpg, .png, .xlsx"
-          style={{ display: 'none' }} 
+          accept=".xlsx, .xls, .csv"
           onChange={handleFileChange}
+          style={styles.fileInput}
         />
 
-        {/* Button */}
+        {fileName && (
+          <div style={styles.selectedFile}>
+            ✅ Selected: {fileName}
+          </div>
+        )}
+
+        {error && (
+          <div style={styles.errorMsg}>
+            ⚠️ {error}
+          </div>
+        )}
+
         <button 
           style={styles.uploadBtn} 
           onClick={handleUpload}
-          onMouseOver={(e) => e.target.style.backgroundColor = '#004d00'}
-          onMouseOut={(e) => e.target.style.backgroundColor = '#006400'}
+          disabled={loading}
         >
-          Publish Sitting Plan
+          {loading ? '⏳ Uploading...' : '📤 Publish Sitting Plan'}
         </button>
 
       </div>

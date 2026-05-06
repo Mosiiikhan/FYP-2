@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react'; 
-import { FaCalendarAlt, FaList, FaChevronLeft, FaChevronRight, FaTimes, FaClock, FaMapMarkerAlt, FaBookOpen, FaExclamationTriangle, FaBriefcase, FaUsers, FaPlus, FaCheckCircle, FaChevronDown, FaInfoCircle, FaHourglassHalf, FaStickyNote, FaCalendarWeek, FaFlagCheckered } from 'react-icons/fa';
+import { FaCalendarAlt, FaList, FaChevronLeft, FaChevronRight, FaTimes, FaClock, FaMapMarkerAlt, FaBookOpen, FaExclamationTriangle, FaBriefcase, FaUsers, FaPlus, FaCheckCircle, FaChevronDown, FaInfoCircle, FaHourglassHalf, FaStickyNote, FaCalendarWeek, FaFlagCheckered, FaBell } from 'react-icons/fa';
 
 const ViewCalendar = () => {
   const [viewMode, setViewMode] = useState('annual'); 
@@ -20,12 +20,18 @@ const ViewCalendar = () => {
   const [selectedDateData, setSelectedDateData] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Notification States
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         const testStudentId = studentId; 
         
+        // 🚩 MASTER FIX: Sending 'role' to backend for strict filtering
         const response = await fetch(`http://localhost:5000/api/calendar/all-events?studentId=${testStudentId}&role=${userRole}`);
         const data = await response.json();
         
@@ -54,8 +60,9 @@ const ViewCalendar = () => {
             let finalColor = item.color_code;
             if (eventType.includes('exam')) finalColor = '#dc3545';
             else if (eventType === 'holiday') finalColor = '#87CEEB';
-            else if (eventType === 'activity') finalColor = '#f39c12'; 
-            else if (!finalColor) finalColor = '#05864e';
+            else if (eventType === 'activity') finalColor = '#f39c12';
+            else if (eventType === 'semester') finalColor = '#05864e';
+            else if (!finalColor) finalColor = '#e810b2';
 
             return {
               id: item.id,
@@ -80,12 +87,7 @@ const ViewCalendar = () => {
             type: 'society',
             start: s.date ? s.date.split('T')[0] : "",
             end: s.date ? s.date.split('T')[0] : "",
-<<<<<<< HEAD
-            // ✅ Dynamic Color from Backend (Society Locked Color)
-            color: s.color || s.color_code || '#e810b2', 
-=======
-            color: '#e810b2', 
->>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
+            color: s.color || '#e810b2', 
             venue: s.venue,
             description: s.description,
             societyName: s.society_name,
@@ -104,6 +106,43 @@ const ViewCalendar = () => {
     fetchData();
   }, [userRole, studentId]);
 
+  useEffect(() => {
+    if (userRole === 'student') {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [userRole]);
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/notifications/list?studentId=${studentId}`);
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setNotifications(data);
+        setUnreadCount(data.filter(n => !n.isRead && !n.is_read).length);
+      }
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    }
+  };
+
+  const markAsRead = async (notificationId) => {
+    try {
+      await fetch(`http://localhost:5000/api/notifications/read/${notificationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId: studentId })
+      });
+      setNotifications(prev => 
+        prev.map(n => (n.notification_id === notificationId || n.id === notificationId) ? { ...n, is_read: true, isRead: true } : n)
+      );
+      setUnreadCount(prev => (prev > 0 ? prev - 1 : 0));
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  };
+
   const handleToggleSubscribe = async (socName) => {
     const isSub = subscribedNames.includes(socName);
     const endpoint = isSub ? 'unsubscribe' : 'subscribe';
@@ -116,6 +155,8 @@ const ViewCalendar = () => {
       const result = await res.json();
       if (result.success) {
         setSubscribedNames(prev => isSub ? prev.filter(name => name !== socName) : [...prev, socName]);
+        // Data refresh taake calendar events update hon
+        window.location.reload();
       }
     } catch (err) { console.error("Action Error:", err); }
   };
@@ -135,49 +176,34 @@ const ViewCalendar = () => {
     if (foundSaturday) {
       const dayName = new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long' });
       setSelectedDateData({ 
-        date: formattedDisplayDate,
-        dayName: dayName,
-        title: "Working Saturday", 
-        type: "Rescheduled Day", 
-        isSaturday: true, 
-        reason: foundSaturday.reason || "Academic replacement day",
-        replacementDay: foundSaturday.replacement_day || "To be announced",
-        additionalInfo: foundSaturday.additional_info || "",
-        color: '#007bff' 
-      });
-      setIsModalOpen(true); return;
-    }
-
-    const foundSociety = events.find(e => e.type === 'society' && e.start === dateStr);
-    if (foundSociety) {
-      setSelectedDateData({ ...foundSociety, date: formattedDisplayDate, isSociety: true });
-      setIsModalOpen(true); return;
-    }
-
-    const foundActivity = events.find(e => (e.type === 'activity') && (dateStr >= e.start && dateStr <= e.end));
-    if (foundActivity) {
-      setSelectedDateData({
-        ...foundActivity,
-        date: formattedDisplayDate,
-        isSportsEvent: true,
-        eventName: foundActivity.title,
-        eventDate: formattedDisplayDate,
-        eventTime: foundActivity.startTime || "09:00 AM - 05:00 PM",
-        eventVenue: foundActivity.roomNo || foundActivity.venue || "Main Campus",
-        organizingSociety: foundActivity.societyName || "Student Affairs Department",
-        eventDescription: foundActivity.description || "Various activities planned for this week.",
-        color: '#f39c12'
+        date: formattedDisplayDate, dayName: dayName, title: "Working Saturday", type: "Rescheduled Day", isSaturday: true, reason: foundSaturday.reason || "Academic replacement day", replacementDay: foundSaturday.replacement_day || "To be announced", additionalInfo: foundSaturday.additional_info || "", color: '#007bff' 
       });
       setIsModalOpen(true); return;
     }
 
     const foundExam = events.find(e => (e.type?.includes("exam")) && (dateStr >= e.start && dateStr <= e.end));
     if (foundExam) {
-      let examType = "Exam";
-      if (foundExam.title?.toLowerCase().includes("mid")) examType = "MIDS";
-      else if (foundExam.title?.toLowerCase().includes("final")) examType = "FINALS";
+      let examType = foundExam.title?.toLowerCase().includes("mid") ? "MIDS" : foundExam.title?.toLowerCase().includes("final") ? "FINALS" : "Exam";
       setSelectedDateData({ ...foundExam, date: formattedDisplayDate, isExam: true, examType: examType, courseName: foundExam.title, venue: foundExam.roomNo || foundExam.venue || "TBA" });
-      setIsModalOpen(true);
+      setIsModalOpen(true); return;
+    }
+
+    const foundHoliday = events.find(e => (e.type === 'holiday') && (dateStr >= e.start && dateStr <= e.end));
+    if (foundHoliday) {
+      setSelectedDateData({ ...foundHoliday, date: formattedDisplayDate, isHoliday: true, color: '#87CEEB' });
+      setIsModalOpen(true); return;
+    }
+
+    const foundSemester = events.find(e => (e.type === 'semester') && (dateStr === e.start));
+    if (foundSemester) {
+      setSelectedDateData({ ...foundSemester, date: formattedDisplayDate, isSemester: true, color: '#05864e' });
+      setIsModalOpen(true); return;
+    }
+
+    const foundRegularEvent = events.find(e => e.type !== 'semester' && (dateStr >= e.start && dateStr <= e.end));
+    if (foundRegularEvent) {
+      setSelectedDateData({ ...foundRegularEvent, date: formattedDisplayDate, isRegularEvent: true, color: foundRegularEvent.color || '#e810b2' });
+      setIsModalOpen(true); return;
     }
   };
 
@@ -185,50 +211,23 @@ const ViewCalendar = () => {
     if (!day) return { style: styles.emptyCell, title: "" };
     const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     
-<<<<<<< HEAD
-    // 1. Emergency Holiday
-=======
-    // 1. Emergency Holiday (Highest Priority)
->>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
     const isEmergency = emergencyHolidays.find(h => dateStr >= h.start_date.split('T')[0] && dateStr <= h.end_date.split('T')[0]);
     if (isEmergency) return { style: { ...styles.dayCell, backgroundColor: 'black', color: 'white', fontWeight: 'bold' }, title: isEmergency.reason };
     
-    // 2. Working Saturday
     const isSaturdayWork = rescheduledSaturdays.find(s => s.working_date.split('T')[0] === dateStr);
     if (isSaturdayWork) return { style: { ...styles.dayCell, backgroundColor: '#007bff', color: 'white', fontWeight: 'bold' }, title: "Working Saturday" };
     
-<<<<<<< HEAD
-    // 3. Society Events (Using Locked Color)
-=======
-    // 3. Society & Sports Events
->>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
-    const isSociety = events.find(e => e.type === 'society' && e.start === dateStr);
-    if (isSociety) return { style: { ...styles.dayCell, backgroundColor: isSociety.color, color: 'white' }, title: isSociety.title };
+    const semesterStart = events.find(e => e.type === 'semester' && dateStr === e.start);
+    if (semesterStart) return { style: { ...styles.dayCell, backgroundColor: '#05864e', color: 'white', fontWeight: 'bold' }, title: semesterStart.title };
     
-    const isActivity = events.find(e => e.type === 'activity' && (dateStr >= e.start && dateStr <= e.end));
-    if (isActivity) return { style: { ...styles.dayCell, backgroundColor: '#f39c12', color: 'white' }, title: isActivity.title };
-    
-    // 4. Exams & Holidays
-    let highlightEvent = events.find(e => dateStr >= e.start && dateStr <= e.end && (e.type.includes("exam") || e.type === "holiday"));
-    
-<<<<<<< HEAD
-=======
-    // 5. Semester Logic (Fix: Highlight ONLY on Start Date)
->>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
-    const semStart = events.find(e => e.type === "semester" && e.start === dateStr);
-
-    let style = { ...styles.dayCell, backgroundColor: 'white', color: '#333' };
-    let displayTitle = ""; 
-
-    if (highlightEvent) {
-      style = { ...style, backgroundColor: highlightEvent.color, color: 'white' };
-      if (dateStr === highlightEvent.start) displayTitle = highlightEvent.title;
-    } else if (semStart) {
-      style = { ...style, backgroundColor: semStart.color, color: 'white', fontWeight: 'bold' };
-      displayTitle = semStart.title;
+    const eventForDate = events.find(e => e.type !== 'semester' && (dateStr >= e.start && dateStr <= e.end));
+    if (eventForDate) {
+      let bgColor = eventForDate.color;
+      let displayTitle = dateStr === eventForDate.start ? eventForDate.title : "";
+      return { style: { ...styles.dayCell, backgroundColor: bgColor, color: 'white' }, title: displayTitle };
     }
-
-    return { style, title: displayTitle };
+    
+    return { style: { ...styles.dayCell, backgroundColor: 'white', color: '#333' }, title: "" };
   };
 
   const generateDays = (year, monthIndex) => {
@@ -245,16 +244,12 @@ const ViewCalendar = () => {
       <h4 style={styles.legendHeader}><FaInfoCircle /> Calendar Legend</h4>
       <div style={styles.legendGrid}>
         <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#dc3545'}}></div><span>Exams (Mid/Final)</span></div>
-        <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#87CEEB'}}></div><span>National Holidays</span></div>
-<<<<<<< HEAD
-        <div style={styles.legendItem}><div style={{...styles.colorBox, background: 'linear-gradient(45deg, #e810b2, #3498DB)'}}></div><span>Societies (Custom Colors)</span></div>
-=======
-        <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#e810b2'}}></div><span>Societies Events</span></div>
->>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
+        <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#87CEEB'}}></div><span>Holidays</span></div>
+        <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#e810b2'}}></div><span>Society Events</span></div>
         <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#007bff'}}></div><span>Working Saturday</span></div>
-        <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#f39c12'}}></div><span>Student Week / Sports Week</span></div>
+        <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#f39c12'}}></div><span>Student Week / Activities</span></div>
         <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'black'}}></div><span>Emergency Closure</span></div>
-        <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#05864e'}}></div><span>Semester Events</span></div>
+        <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#05864e'}}></div><span>Semester Start</span></div>
       </div>
     </div>
   );
@@ -264,6 +259,34 @@ const ViewCalendar = () => {
       <div style={styles.topBar}>
         <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
           <h3 style={{margin:0}}>Academic Calendar</h3>
+          {userRole === 'student' && (
+            <div style={{position: 'relative'}}>
+              <button onClick={() => setShowNotifications(!showNotifications)} style={styles.bellButton}>
+                <FaBell size={18} color="#555" />
+                {unreadCount > 0 && <span style={styles.badge}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
+              </button>
+              {showNotifications && (
+                <div style={styles.notificationDropdown}>
+                  <div style={styles.notificationHeader}>
+                    <span>Notifications</span>
+                    <button onClick={() => setShowNotifications(false)} style={styles.closeNotifBtn}>×</button>
+                  </div>
+                  {notifications.length > 0 ? (
+                    notifications.map((notif) => (
+                      <div 
+                        key={notif.notification_id || notif.id} 
+                        style={{...styles.notificationItem, backgroundColor: (notif.is_read || notif.isRead) ? '#f9f9f9' : '#fff3e0'}} 
+                        onClick={() => !(notif.is_read || notif.isRead) && markAsRead(notif.notification_id || notif.id)}
+                      >
+                        <p style={styles.notifMessage}>{notif.message}</p>
+                        <small style={styles.notifDate}>{notif.created_at ? new Date(notif.created_at).toLocaleString() : ''}</small>
+                      </div>
+                    ))
+                  ) : <div style={styles.noNotifications}>No notifications</div>}
+                </div>
+              )}
+            </div>
+          )}
           {userRole === 'student' && (
             <div style={{position:'relative'}}>
               <button onClick={() => setShowDropdown(!showDropdown)} style={styles.dropdownToggle}>
@@ -301,7 +324,9 @@ const ViewCalendar = () => {
               {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((mName, mIdx) => (
                 <div key={mIdx} style={styles.miniCard}>
                   <div style={styles.miniHeader}>{mName} {currentYear}</div>
-                  <div style={styles.miniWeekRow}>{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((wd, i) => <span key={i} style={styles.weekDay}>{wd}</span>)}</div>
+                  <div style={styles.miniWeekRow}>
+                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((wd, i) => <span key={i} style={styles.weekDay}>{wd}</span>)}
+                  </div>
                   <div style={styles.miniDateGrid}>
                     {generateDays(currentYear, mIdx).map((d, idx) => {
                       const { style } = getEventStyle(d, mIdx, currentYear);
@@ -342,93 +367,17 @@ const ViewCalendar = () => {
           <div style={{...styles.modalContent, borderTop: `8px solid ${selectedDateData.color || '#05864e'}`}} onClick={e => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <div style={styles.headerInfo}>
-                <span style={{...styles.typeBadge, backgroundColor: selectedDateData.color || '#05864e'}}>
-                  {selectedDateData.isExam ? 'EXAMS' : 
-                   selectedDateData.isSaturday ? 'RESCHEDULED DAY' :
-                   selectedDateData.isSportsEvent ? 'STUDENT WEEK / SPORTS' :
-                   (selectedDateData.type?.toUpperCase() || 'EVENT')}
-                </span>
-                <h3 style={styles.modalTitle}>
-                  {selectedDateData.isExam ? 'Exams' : 
-                   selectedDateData.isSaturday ? 'Working Saturday' :
-                   selectedDateData.isSportsEvent ? selectedDateData.eventName || 'Student Week' :
-                   selectedDateData.title}
-                </h3>
+                <span style={{...styles.typeBadge, backgroundColor: selectedDateData.color || '#05864e'}}>{selectedDateData.isExam ? 'EXAMS' : selectedDateData.isSaturday ? 'RESCHEDULED DAY' : selectedDateData.isEmergency ? 'EMERGENCY' : selectedDateData.isHoliday ? 'HOLIDAY' : selectedDateData.isSemester ? 'SEMESTER' : 'EVENT'}</span>
+                <h3 style={styles.modalTitle}>{selectedDateData.isExam ? 'Exams' : selectedDateData.isSaturday ? 'Working Saturday' : selectedDateData.isEmergency ? 'Emergency Closure' : selectedDateData.title}</h3>
               </div>
               <FaTimes style={styles.closeIcon} onClick={() => setIsModalOpen(false)} />
             </div>
-
             <div style={styles.modalBody}>
               <div style={styles.infoGridMain}>
-                {selectedDateData.isExam && (
-                  <>
-                    <div style={styles.infoRow}><FaBookOpen style={styles.rowIcon} /> <div><strong>Exam Type:</strong> <span>{selectedDateData.examType}</span></div></div>
-                    <div style={styles.infoRow}><FaCalendarAlt style={styles.rowIcon} /> <div><strong>Date:</strong> <span>{selectedDateData.date}</span></div></div>
-                    {selectedDateData.startTime !== "N/A" && <div style={styles.infoRow}><FaClock style={styles.rowIcon} /> <div><strong>Time Slot:</strong> <span>{selectedDateData.startTime}</span></div></div>}
-                    <div style={styles.infoRow}><FaBookOpen style={styles.rowIcon} /> <div><strong>Course Name:</strong> <span>{selectedDateData.courseName}</span></div></div>
-                    <div style={styles.infoRow}><FaMapMarkerAlt style={styles.rowIcon} /> <div><strong>Venue:</strong> <span>{selectedDateData.venue || selectedDateData.roomNo}</span></div></div>
-                  </>
-                )}
-
-                {selectedDateData.isSaturday && (
-                  <>
-                    <div style={styles.infoRow}><FaCalendarWeek style={styles.rowIcon} /> <div><strong>Day:</strong> <span>{selectedDateData.dayName}</span></div></div>
-                    <div style={styles.infoRow}><FaCalendarAlt style={styles.rowIcon} /> <div><strong>Date:</strong> <span>{selectedDateData.date}</span></div></div>
-                    <div style={styles.infoRow}><FaExclamationTriangle style={styles.rowIcon} /> <div><strong>Reason:</strong> <span>{selectedDateData.reason}</span></div></div>
-                    <div style={styles.infoRow}><FaCalendarWeek style={styles.rowIcon} /> <div><strong>Replacement For:</strong> <span>{selectedDateData.replacementDay}</span></div></div>
-<<<<<<< HEAD
-                  </>
-                )}
-
-                {selectedDateData.isSociety && (
-=======
-                    {selectedDateData.additionalInfo && <div style={styles.infoRow}><FaStickyNote style={styles.rowIcon} /> <div><strong>Additional Info:</strong> <span>{selectedDateData.additionalInfo}</span></div></div>}
-                  </>
-                )}
-
-                {selectedDateData.isSportsEvent && (
-                  <>
-                    <div style={styles.infoRow}><FaFlagCheckered style={styles.rowIcon} /> <div><strong>Event:</strong> <span>{selectedDateData.eventName}</span></div></div>
-                    <div style={styles.infoRow}><FaCalendarAlt style={styles.rowIcon} /> <div><strong>Date:</strong> <span>{selectedDateData.date}</span></div></div>
-                    <div style={styles.infoRow}><FaClock style={styles.rowIcon} /> <div><strong>Time:</strong> <span>{selectedDateData.eventTime}</span></div></div>
-                    <div style={styles.infoRow}><FaMapMarkerAlt style={styles.rowIcon} /> <div><strong>Venue:</strong> <span>{selectedDateData.eventVenue}</span></div></div>
-                    <div style={styles.infoRow}><FaUsers style={styles.rowIcon} /> <div><strong>Organized By:</strong> <span>{selectedDateData.organizingSociety}</span></div></div>
-                  </>
-                )}
-
-                {selectedDateData.isSociety && !selectedDateData.isSportsEvent && (
->>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
-                  <>
-                    <div style={styles.infoRow}><FaCalendarAlt style={styles.rowIcon} /> <div><strong>Date:</strong> <span>{selectedDateData.date}</span></div></div>
-                    <div style={styles.infoRow}><FaClock style={styles.rowIcon} /> <div><strong>Time:</strong> <span>{selectedDateData.startTime}</span></div></div>
-                    <div style={styles.infoRow}><FaMapMarkerAlt style={styles.rowIcon} /> <div><strong>Venue:</strong> <span>{selectedDateData.venue || selectedDateData.roomNo}</span></div></div>
-                    <div style={styles.infoRow}><FaUsers style={styles.rowIcon} /> <div><strong>Society:</strong> <span>{selectedDateData.societyName}</span></div></div>
-                  </>
-                )}
-<<<<<<< HEAD
+                <div style={styles.infoRow}><FaCalendarAlt style={styles.rowIcon} /><div><strong>Date:</strong> <span>{selectedDateData.date}</span></div></div>
+                <div style={styles.infoRow}><FaStickyNote style={styles.rowIcon} /><div><strong>Info:</strong> <span>{selectedDateData.description || "No further details."}</span></div></div>
               </div>
-=======
-
-                {selectedDateData.isEmergency && (
-                  <>
-                    <div style={styles.infoRow}><FaCalendarAlt style={styles.rowIcon} /> <div><strong>Date:</strong> <span>{selectedDateData.date}</span></div></div>
-                    <div style={styles.infoRow}><FaExclamationTriangle style={styles.rowIcon} /> <div><strong>Reason:</strong> <span>{selectedDateData.description}</span></div></div>
-                  </>
-                )}
-              </div>
-              
-              {selectedDateData.isExam && (
-                <div style={styles.sittingPlanSection}>
-                  <h4 style={styles.descTitle}><FaExclamationTriangle /> Sitting Plan</h4>
-                  <div style={styles.sittingPlanPlaceholder}>
-                    <p style={styles.placeholderText}>📍 <strong>Venue:</strong> {selectedDateData.venue || "To be announced"}</p>
-                    <p style={styles.noteText}><em>Note: Detailed seat allocation will be available soon.</em></p>
-                  </div>
-                </div>
-              )}
->>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
             </div>
-
             <button style={{...styles.closeBtn, background: selectedDateData.color || '#05864e'}} onClick={() => setIsModalOpen(false)}>Dismiss</button>
           </div>
         </div>
@@ -440,6 +389,15 @@ const ViewCalendar = () => {
 const styles = {
   container: { padding: '10px 20px', backgroundColor: 'white', borderRadius: '10px', height: '90vh', display: 'flex', flexDirection: 'column' },
   topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', borderBottom: '1px solid #eee' },
+  bellButton: { position: 'relative', background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  badge: { position: 'absolute', top: '-5px', right: '-5px', backgroundColor: '#dc3545', color: 'white', borderRadius: '50%', padding: '2px 6px', fontSize: '10px', fontWeight: 'bold', minWidth: '18px', textAlign: 'center' },
+  notificationDropdown: { position: 'absolute', top: '100%', right: 0, width: '300px', maxHeight: '400px', overflowY: 'auto', backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 8px 16px rgba(0,0,0,0.1)', zIndex: 1001, marginTop: '5px', border: '1px solid #eee' },
+  notificationHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 15px', borderBottom: '1px solid #eee', fontWeight: 'bold', backgroundColor: '#f8f9fa', borderRadius: '8px 8px 0 0' },
+  closeNotifBtn: { background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#999' },
+  notificationItem: { padding: '12px 15px', borderBottom: '1px solid #eee', cursor: 'pointer', transition: 'background 0.2s' },
+  notifMessage: { margin: '0 0 5px 0', fontSize: '13px', color: '#333' },
+  notifDate: { fontSize: '10px', color: '#999' },
+  noNotifications: { padding: '20px', textAlign: 'center', color: '#999', fontSize: '13px' },
   dropdownToggle: { padding:'6px 12px', background:'#e810b2', color:'white', border:'none', borderRadius:'6px', cursor:'pointer', fontWeight:'bold', fontSize:'12px', display:'flex', alignItems:'center', gap:'8px' },
   dropdownMenu: { position:'absolute', top:'100%', left:0, background:'white', boxShadow:'0 8px 16px rgba(0,0,0,0.1)', borderRadius:'8px', width:'220px', zIndex:1000, marginTop:'5px', border:'1px solid #eee', padding:'10px' },
   dropdownItem: { display:'flex', alignItems:'center', padding:'8px', borderBottom:'1px solid #f5f5f5', color:'#333' },
@@ -452,17 +410,17 @@ const styles = {
   annualGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' },
   miniCard: { border: '1px solid #ddd', borderRadius: '6px', overflow: 'hidden' },
   miniHeader: { backgroundColor: '#05864e', color: 'white', padding: '2px', textAlign: 'center', fontSize: '11px' },
-  miniWeekRow: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: '#f1f1f1' },
-  weekDay: { fontSize: '8px', textAlign: 'center' },
+  miniWeekRow: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: '#f1f1f1', padding: '2px 0' },
+  weekDay: { fontSize: '8px', textAlign: 'center', fontWeight: 'bold', color: '#555' },
   miniDateGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', padding: '2px', gap: '1px' },
-  dayCell: { fontSize: '10px', textAlign: 'center', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  dayCell: { fontSize: '10px', textAlign: 'center', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '3px' },
   emptyCell: { backgroundColor: 'transparent' },
   monthlyContainer: { height: '100%', display: 'flex', flexDirection: 'column' },
   monthNav: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginBottom: '10px' },
-  navBtn: { padding: '5px 10px', cursor: 'pointer', border: '1px solid #ddd' },
+  navBtn: { padding: '5px 10px', cursor: 'pointer', border: '1px solid #ddd', background: 'white', borderRadius: '5px' },
   bigCalendar: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px', backgroundColor: '#ddd' },
-  bigWeekHeader: { backgroundColor: '#05864e', color: 'white', padding: '10px', textAlign: 'center' },
-  bigDayCell: { minHeight: '95px', padding: '5px', display: 'flex', flexDirection: 'column' },
+  bigWeekHeader: { backgroundColor: '#05864e', color: 'white', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '12px' },
+  bigDayCell: { minHeight: '95px', padding: '5px', display: 'flex', flexDirection: 'column', backgroundColor: 'white' },
   bigEmptyCell: { backgroundColor: '#f9f9f9', minHeight: '95px' },
   dateNum: { fontWeight: 'bold', fontSize: '14px' },
   eventTitleDisplay: { fontSize: '10px', marginTop: 'auto', textAlign: 'center', padding: '2px', borderRadius: '4px', backgroundColor: 'rgba(0,0,0,0.3)' },
@@ -477,27 +435,12 @@ const styles = {
   headerInfo: { display: 'flex', flexDirection: 'column', gap: '8px' },
   typeBadge: { padding: '4px 10px', color: 'white', borderRadius: '20px', fontSize: '10px', fontWeight: 'bold', width: 'fit-content' },
   modalTitle: { margin: 0, fontSize: '20px', color: '#1e293b', fontWeight: '700' },
-<<<<<<< HEAD
-  closeIcon: { cursor: 'pointer', fontSize: '20px', color: '#94a3b8' },
-=======
   closeIcon: { cursor: 'pointer', fontSize: '20px', color: '#94a3b8', transition: 'color 0.2s' },
->>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
   modalBody: { padding: '20px' },
   infoGridMain: { display: 'flex', flexDirection: 'column', gap: '15px' },
   infoRow: { display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#475569', fontSize: '14px' },
   rowIcon: { marginTop: '3px', color: '#64748b', fontSize: '16px' },
-<<<<<<< HEAD
-  closeBtn: { width: '100%', padding: '14px', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' },
-=======
-  descSection: { marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #e2e8f0' },
-  descTitle: { margin: '0 0 8px 0', fontSize: '14px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' },
-  descText: { fontSize: '13px', color: '#64748b', lineHeight: '1.6', margin: 0, fontStyle: 'italic' },
-  closeBtn: { width: '100%', padding: '14px', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', letterSpacing: '0.5px' },
-  sittingPlanSection: { marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #e2e8f0' },
-  sittingPlanPlaceholder: { backgroundColor: '#fff5f5', padding: '12px', borderRadius: '8px', border: '1px solid #fed7d7' },
-  placeholderText: { fontSize: '13px', color: '#c53030', margin: '0 0 8px 0' },
-  noteText: { fontSize: '12px', color: '#718096', margin: 0 }
->>>>>>> edd2f9e2a8986959020420b3e53294d4dbbedaa4
+  closeBtn: { width: '100%', padding: '14px', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', letterSpacing: '0.5px' }
 };
 
 export default ViewCalendar;

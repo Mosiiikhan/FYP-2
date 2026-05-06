@@ -11,11 +11,10 @@ const emergencyholidayRoutes = require('./routes/emergencyholidayRoutes');
 const saturdayRoutes = require('./routes/saturdayRoutes'); 
 const eventRoutes = require('./routes/eventRoutes'); 
 const holidayRoutes = require('./routes/holidayRoutes'); 
-const meetingRoutes = require('./routes/meetingRoutes'); // ✅ Added: Meeting Routes for AD
-// Pehle import karein
+const meetingRoutes = require('./routes/meetingRoutes');
 const islamicRoutes = require('./routes/islamicHolidaysRoutes');
-
-
+const notificationRoutes = require('./routes/notificationRoutes'); 
+const seatingPlanRoutes = require('./routes/seatingPlanRoutes');
 
 const app = express();
 
@@ -46,10 +45,11 @@ app.use('/api/enrollment', enrollmentRoutes);
 app.use('/api/emergencyholiday', emergencyholidayRoutes); 
 app.use('/api/saturdays', saturdayRoutes); 
 app.use('/api/events', eventRoutes); 
-app.use('/api/holidays', holidayRoutes); 
-app.use('/api/meetings', meetingRoutes); // ✅ Added: Registered Meeting API for AD
-
+app.use('/api/holidays', holidayRoutes); // <--- Is route par call ja rahi hai
+app.use('/api/meetings', meetingRoutes);
 app.use('/api/islamic', islamicRoutes);
+app.use('/api/seating-plan', seatingPlanRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // ✅ 6. Global Error Handling Middleware
 app.use((err, req, res, next) => {
@@ -61,7 +61,8 @@ app.use((err, req, res, next) => {
 const PORT = 5000;
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📡 Events API active at: /api/events`);
-    console.log(`📡 Holidays API active at: /api/holidays`);
-    console.log(`📡 Meetings API active at: /api/meetings`); // ✅ Logic Check for Meetings
+    console.log(`📡 API Endpoints Ready:`);
+    console.log(`   - Holidays: http://localhost:${PORT}/api/holidays/definitions`);
+    console.log(`   - Events:   http://localhost:${PORT}/api/events`);
+    console.log(`   - Seating:  http://localhost:${PORT}/api/seating-plan`);
 });

@@ -2,12 +2,12 @@ const moment = require('moment-hijri');
 const { sql } = require('../../config/db');
 
 // --- 1. Helper: Database se current offset Read karna ---
-// Ye function sirf internal use ke liye hai taake code repeat na ho
 const getHijriOffsetFromDB = async (pool) => {
     try {
         const result = await pool.request()
             .query("SELECT setting_value FROM AutoAdjust_IslamicHolidays WHERE setting_key = 'hijri_offset'");
-        return result.recordset[0]?.setting_value || 0;
+        // Result safe handling
+        return (result.recordset && result.recordset.length > 0) ? result.recordset[0].setting_value : 0;
     } catch (err) {
         console.error("Error fetching offset from DB:", err);
         return 0; 
@@ -25,50 +25,65 @@ exports.getIslamicOffset = async (req, res) => {
     }
 };
 
-// --- 3. Main Logic: Islamic Holidays Generate karna (For Academic Calendar) ---
+// --- 3. Main Logic: Islamic Holidays Generate karna ---
 exports.getIslamicHolidays = async (pool, year) => {
     const autoHolidays = [];
     const hijriOffset = await getHijriOffsetFromDB(pool);
 
+    // Poore saal ke har din ko check karna (Performance optimized loop)
     for (let m = 0; m < 12; m++) {
         let daysInMonth = new Date(year, m + 1, 0).getDate();
         for (let d = 1; d <= daysInMonth; d++) {
             let dateStr = `${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             
-            // Moment-hijri library admin ke set kiye huye din add karti hai
             let mDate = moment(dateStr, 'YYYY-MM-DD').add(hijriOffset, 'days');
             let iMonth = mDate.iMonth() + 1; 
             let iDay = mDate.iDate();
 
+            let holidayTitle = "";
+
             // Eid-ul-Fitr (1st Shawwal - 3 Days)
             if (iMonth === 10 && (iDay === 1 || iDay === 2 || iDay === 3)) {
-                autoHolidays.push({ id: `eid-f-${dateStr}`, title: "Eid-ul-Fitr Holiday", date: dateStr, type: 'holiday', color: '#87CEEB', description: "Auto-generated Islamic Holiday" });
+                holidayTitle = "Eid-ul-Fitr Holiday";
             }
             // Eid-ul-Adha (10th Zil-Hajj - 3 Days)
             else if (iMonth === 12 && (iDay === 10 || iDay === 11 || iDay === 12)) {
-                autoHolidays.push({ id: `eid-a-${dateStr}`, title: "Eid-ul-Adha Holiday", date: dateStr, type: 'holiday', color: '#87CEEB', description: "Auto-generated Islamic Holiday" });
+                holidayTitle = "Eid-ul-Adha Holiday";
             }
             // Ashura (9, 10 Muharram)
             else if (iMonth === 1 && (iDay === 9 || iDay === 10)) {
-                autoHolidays.push({ id: `ashura-${dateStr}`, title: "Ashura Holiday", date: dateStr, type: 'holiday', color: '#87CEEB' });
+                holidayTitle = "Ashura Holiday";
             }
             // Eid Milad-un-Nabi (12 Rabi-ul-Awwal)
             else if (iMonth === 3 && iDay === 12) {
-                autoHolidays.push({ id: `milad-${dateStr}`, title: "Eid Milad-un-Nabi", date: dateStr, type: 'holiday', color: '#87CEEB' });
+                holidayTitle = "Eid Milad-un-Nabi";
+            }
+
+            if (holidayTitle) {
+                autoHolidays.push({ 
+                    id: `ih-${dateStr}`, 
+                    title: holidayTitle, 
+                    // Frontend compatibility ke liye 'date' aur 'start_date' dono bhej rahe hain
+                    date: dateStr, 
+                    start_date: dateStr, 
+                    end_date: dateStr,
+                    type: 'holiday', 
+                    color: '#87CEEB', 
+                    description: "Islamic Religious Holiday" 
+                });
             }
         }
     }
     return autoHolidays;
 };
 
-// --- 4. Admin Action: Offset Update karna (Fixing the variable mismatch) ---
+// --- 4. Admin Action: Offset Update karna ---
 exports.updateIslamicOffset = async (req, res) => {
     try {
-        // 🚨 Yahan hum dono 'offsetValue' aur 'offset' check kar rahe hain
         const rawValue = req.body.offsetValue !== undefined ? req.body.offsetValue : req.body.offset;
         
         if (rawValue === undefined) {
-            return res.status(400).json({ success: false, message: "No offset value provided in request" });
+            return res.status(400).json({ success: false, message: "No offset value provided" });
         }
 
         const pool = req.app.locals.db;

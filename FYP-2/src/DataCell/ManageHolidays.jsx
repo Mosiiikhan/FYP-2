@@ -26,19 +26,18 @@ const ManageHolidays = () => {
     try {
         const res = await fetch("http://localhost:5000/api/holidays/definitions");
         const data = await res.json();
-        console.log("Fetched Definitions:", data); // 🚩 Ye check karein terminal/console mein
-        setDefinitions(Array.isArray(data) ? data : []); // Safety check
+        console.log("Fetched Definitions:", data); 
+        setDefinitions(Array.isArray(data) ? data : []); 
     } catch (err) { 
         console.error("Definitions Load Error:", err); 
     }
-};
+  };
+
   const fetchPublicHolidays = async () => {
     try {
-      // 🚩 FIXED URL: 'all-events' use karein jo calendarController mein hai
       const res = await fetch("http://localhost:5000/api/calendar/all-events");
       const data = await res.json();
       
-      // 🚩 FIXED FILTER: Database se 'holiday' type ka data uthana
       if (Array.isArray(data)) {
         const onlyHolidays = data.filter(item => 
           (item.type || "").toLowerCase().trim() === 'holiday'
@@ -48,7 +47,7 @@ const ManageHolidays = () => {
           id: h.id,
           title: h.title,
           type: h.type || 'Holiday',
-          startDate: h.start_date, // Backend already YYYY-MM-DD bhej raha hai
+          startDate: h.start_date, 
           endDate: h.end_date
         })));
       }
@@ -59,6 +58,44 @@ const ManageHolidays = () => {
   const handleAddNew = () => {
     setFormData({ definition_id: '', title: '', type: 'National', startDate: '', endDate: '', description: '' });
     setShowModal(true);
+  };
+
+  // 🟢 AUTO-FILL LOGIC: Jab dropdown change ho
+  const handleDefinitionChange = (e) => {
+    const selectedId = e.target.value;
+    
+    if (!selectedId) {
+      setFormData({ ...formData, definition_id: '', title: '', type: 'National', startDate: '', endDate: '' });
+      return;
+    }
+
+    const def = definitions.find(d => d.definition_id === parseInt(selectedId));
+    
+    if (def) {
+      let autoDate = '';
+      
+      // Agar National holiday hai aur DB mein day/month mojood hai
+      if (def.holiday_type === 'National' && def.fixed_day && def.fixed_month) {
+        const currentYear = new Date().getFullYear();
+        // Month zero-based hota hai JS mein (0-11), isliye -1
+        const dateObj = new Date(currentYear, def.fixed_month - 1, def.fixed_day);
+        
+        // Format to YYYY-MM-DD for HTML input
+        const yyyy = dateObj.getFullYear();
+        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const dd = String(dateObj.getDate()).padStart(2, '0');
+        autoDate = `${yyyy}-${mm}-${dd}`;
+      }
+
+      setFormData({ 
+        ...formData, 
+        definition_id: selectedId, 
+        title: def.holiday_name, 
+        type: def.holiday_type,
+        startDate: autoDate, // Auto fill date
+        endDate: autoDate    // Auto fill date
+      });
+    }
   };
 
   const handleSave = async () => {
@@ -86,15 +123,17 @@ const ManageHolidays = () => {
       const result = await response.json();
       if (result.success) {
         alert("Holiday Saved Successfully! ✅");
-        fetchPublicHolidays(); // Refresh list to show new holiday
+        fetchPublicHolidays(); 
         setShowModal(false);
+      } else {
+        alert("Server Error: " + result.error);
       }
     } catch (err) {
       alert("Error saving to Server");
     }
   };
 
-  // --- STYLES (No changes here) ---
+  // --- STYLES ---
   const styles = {
     page: { width: '100%', minHeight: '100vh', display: 'flex', justifyContent: 'center', paddingTop: '30px', fontFamily: 'sans-serif', backgroundColor: '#f4f7f6' },
     mobileCard: { backgroundColor: 'white', width: '90%', maxWidth: '500px', padding: '25px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', gap: '15px' },
@@ -148,17 +187,13 @@ const ManageHolidays = () => {
               <h3 style={{ marginTop: 0, color: '#333' }}>Add New Holiday</h3>
               
               <label style={styles.label}>Select Definition</label>
-              <select style={styles.modalInput} value={formData.definition_id} 
-                onChange={(e) => {
-                  const def = definitions.find(d => d.definition_id === parseInt(e.target.value));
-                  setFormData({ ...formData, definition_id: e.target.value, title: def ? def.holiday_name : '', type: def ? def.holiday_type : 'National' });
-                }}>
+              <select style={styles.modalInput} value={formData.definition_id} onChange={handleDefinitionChange}>
                 <option value="">-- Manual Entry --</option>
                 {definitions.map(def => (
-    <option key={def.definition_id} value={def.definition_id}>
-        {def.holiday_name} {/* 🚩 Agar table mein 'name' hai to yahan 'name' likhein */}
-    </option>
-))}
+                  <option key={def.definition_id} value={def.definition_id}>
+                    {def.holiday_name}
+                  </option>
+                ))}
               </select>
 
               <label style={styles.label}>Holiday Name</label>
@@ -173,7 +208,7 @@ const ManageHolidays = () => {
               <div style={{ display: 'flex', gap: '10px' }}>
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>Start Date</label>
-                  <input type="date" style={styles.modalInput} value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value, endDate: e.target.value })} />
+                  <input type="date" style={styles.modalInput} value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>End Date</label>

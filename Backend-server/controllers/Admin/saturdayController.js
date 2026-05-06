@@ -1,4 +1,8 @@
 const { sql } = require('../../config/db');
+// Notification Controller ko import kiya
+// Pehle yeh tha: require('../Society/notificationController')
+// Isay yeh kar dein:
+const NotifController = require('../notificationController');
 
 // 1. GET ALL SATURDAYS
 exports.getAllSaturdays = async (req, res) => {
@@ -13,7 +17,7 @@ exports.getAllSaturdays = async (req, res) => {
     }
 };
 
-// 2. ADD NEW SATURDAY
+// 2. ADD NEW SATURDAY (Updated with Notification)
 exports.addSaturday = async (req, res) => {
     try {
         const { working_date, holiday_date, reason } = req.body;
@@ -30,7 +34,20 @@ exports.addSaturday = async (req, res) => {
             .query(`INSERT INTO working_saturdays (working_date, holiday_date, reason) 
                     VALUES (@wDate, @hDate, @reason)`);
 
-        res.status(201).json({ success: true, message: "Saved Successfully! ✅" });
+        // --- UNIVERSAL NOTIFICATION TRIGGER ---
+        try {
+            await NotifController.createNotification(pool, {
+                senderRole: 'Admin',
+                targetType: 'all', // Sab students ko notification jaye gi
+                targetValue: null,
+                title: 'Saturday Rescheduled! 📅',
+                message: `Notice: ${working_date} (Saturday) will be a working day instead of ${holiday_date} due to ${reason}.`
+            });
+        } catch (notifErr) {
+            console.error("⚠️ Notification trigger failed:", notifErr.message);
+        }
+
+        res.status(201).json({ success: true, message: "Saved and students notified! ✅" });
     } catch (err) {
         console.error("❌ Insert Error:", err.message);
         res.status(500).json({ success: false, message: "SQL Error: " + err.message });
