@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react'; 
-import { FaCalendarAlt, FaList, FaChevronLeft, FaChevronRight, FaTimes, FaClock, FaMapMarkerAlt, FaBookOpen, FaExclamationTriangle, FaBriefcase, FaUsers, FaPlus, FaCheckCircle, FaChevronDown, FaInfoCircle, FaHourglassHalf, FaStickyNote, FaCalendarWeek, FaFlagCheckered, FaBell } from 'react-icons/fa';
+import { FaCalendarAlt, FaList, FaChevronLeft, FaChevronRight, FaTimes, FaClock, FaMapMarkerAlt, FaBookOpen, FaExclamationTriangle, FaBriefcase, FaUsers, FaPlus, FaCheckCircle, FaChevronDown, FaInfoCircle, FaHourglassHalf, FaStickyNote, FaCalendarWeek, FaFlagCheckered, FaBell, FaArrowRight, FaFileExcel } from 'react-icons/fa';
 
 const ViewCalendar = () => {
   const [viewMode, setViewMode] = useState('annual'); 
@@ -20,10 +20,19 @@ const ViewCalendar = () => {
   const [selectedDateData, setSelectedDateData] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Notification States
+  const [multipleEventsList, setMultipleEventsList] = useState([]);
+  const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
+
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
+
+  // Helper function to get short title for display based on view mode
+  const getShortTitle = (title, maxLength) => {
+    if (!title) return "";
+    if (title.length <= maxLength) return title;
+    return title.substring(0, maxLength - 2) + "..";
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -31,7 +40,6 @@ const ViewCalendar = () => {
         setLoading(true);
         const testStudentId = studentId; 
         
-        // 🚩 MASTER FIX: Sending 'role' to backend for strict filtering
         const response = await fetch(`http://localhost:5000/api/calendar/all-events?studentId=${testStudentId}&role=${userRole}`);
         const data = await response.json();
         
@@ -73,7 +81,7 @@ const ViewCalendar = () => {
               color: finalColor,
               startTime: item.start_time || "N/A",
               roomNo: item.room_no || "TBA",
-              description: item.description || "",
+              description: item.description || item.agenda_description || "",
               societyName: item.society_name || ""
             };
           });
@@ -155,7 +163,6 @@ const ViewCalendar = () => {
       const result = await res.json();
       if (result.success) {
         setSubscribedNames(prev => isSub ? prev.filter(name => name !== socName) : [...prev, socName]);
-        // Data refresh taake calendar events update hon
         window.location.reload();
       }
     } catch (err) { console.error("Action Error:", err); }
@@ -166,68 +173,88 @@ const ViewCalendar = () => {
     const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const formattedDisplayDate = `${String(day).padStart(2, '0')}-${String(monthIndex + 1).padStart(2, '0')}-${year}`;
 
+    let rawDayEvents = [];
+
     const foundEmergency = emergencyHolidays.find(h => dateStr >= h.start_date.split('T')[0] && dateStr <= h.end_date.split('T')[0]);
-    if (foundEmergency) {
-      setSelectedDateData({ date: formattedDisplayDate, title: "Emergency Closure", type: "Emergency", isEmergency: true, description: foundEmergency.reason, color: 'black' });
-      setIsModalOpen(true); return;
-    }
+    if (foundEmergency) rawDayEvents.push({ date: formattedDisplayDate, title: "Emergency Closure", type: "Emergency", isEmergency: true, description: foundEmergency.reason, color: 'black' });
 
     const foundSaturday = rescheduledSaturdays.find(s => s.working_date.split('T')[0] === dateStr);
     if (foundSaturday) {
       const dayName = new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long' });
-      setSelectedDateData({ 
-        date: formattedDisplayDate, dayName: dayName, title: "Working Saturday", type: "Rescheduled Day", isSaturday: true, reason: foundSaturday.reason || "Academic replacement day", replacementDay: foundSaturday.replacement_day || "To be announced", additionalInfo: foundSaturday.additional_info || "", color: '#007bff' 
-      });
-      setIsModalOpen(true); return;
+      rawDayEvents.push({ date: formattedDisplayDate, dayName: dayName, title: "Working Saturday", type: "Rescheduled Day", isSaturday: true, description: foundSaturday.reason || "Academic replacement day", color: '#007bff', venue: foundSaturday.replacement_day });
     }
 
-    const foundExam = events.find(e => (e.type?.includes("exam")) && (dateStr >= e.start && dateStr <= e.end));
-    if (foundExam) {
-      let examType = foundExam.title?.toLowerCase().includes("mid") ? "MIDS" : foundExam.title?.toLowerCase().includes("final") ? "FINALS" : "Exam";
-      setSelectedDateData({ ...foundExam, date: formattedDisplayDate, isExam: true, examType: examType, courseName: foundExam.title, venue: foundExam.roomNo || foundExam.venue || "TBA" });
-      setIsModalOpen(true); return;
-    }
+    const filteredEvents = events.filter(e => {
+        if (e.type === 'semester') return dateStr === e.start;
+        return (dateStr >= e.start && dateStr <= e.end);
+    });
 
-    const foundHoliday = events.find(e => (e.type === 'holiday') && (dateStr >= e.start && dateStr <= e.end));
-    if (foundHoliday) {
-      setSelectedDateData({ ...foundHoliday, date: formattedDisplayDate, isHoliday: true, color: '#87CEEB' });
-      setIsModalOpen(true); return;
-    }
+    filteredEvents.forEach(e => {
+        let eventData = { ...e, date: formattedDisplayDate };
+        const lowerTitle = e.title?.toLowerCase() || "";
+        if (lowerTitle.includes("exam")) {
+            eventData.isExam = true;
+            eventData.examType = lowerTitle.includes("mid") ? "MIDS" : "FINALS";
+            eventData.venue = e.roomNo || e.venue || "TBA";
+        } else if (e.type === 'holiday') {
+            eventData.isHoliday = true;
+        } else if (e.type === 'semester') {
+            eventData.isSemester = true;
+        } else {
+            eventData.isRegularEvent = true;
+        }
+        rawDayEvents.push(eventData);
+    });
 
-    const foundSemester = events.find(e => (e.type === 'semester') && (dateStr === e.start));
-    if (foundSemester) {
-      setSelectedDateData({ ...foundSemester, date: formattedDisplayDate, isSemester: true, color: '#05864e' });
-      setIsModalOpen(true); return;
-    }
+    const uniqueEvents = rawDayEvents.filter((event, index, self) =>
+        index === self.findIndex((t) => (
+            t.title.trim().toLowerCase() === event.title.trim().toLowerCase()
+        ))
+    );
 
-    const foundRegularEvent = events.find(e => e.type !== 'semester' && (dateStr >= e.start && dateStr <= e.end));
-    if (foundRegularEvent) {
-      setSelectedDateData({ ...foundRegularEvent, date: formattedDisplayDate, isRegularEvent: true, color: foundRegularEvent.color || '#e810b2' });
-      setIsModalOpen(true); return;
+    if (uniqueEvents.length === 0) return;
+
+    if (uniqueEvents.length === 1) {
+      setSelectedDateData(uniqueEvents[0]);
+      setIsModalOpen(true);
+    } else {
+      setMultipleEventsList(uniqueEvents);
+      setIsSelectionModalOpen(true);
     }
   };
 
-  const getEventStyle = (day, monthIndex, year) => {
-    if (!day) return { style: styles.emptyCell, title: "" };
+  // Get all events for a specific date
+  const getEventsForDate = (day, monthIndex, year) => {
+    if (!day) return [];
     const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    
+    let items = [];
+
     const isEmergency = emergencyHolidays.find(h => dateStr >= h.start_date.split('T')[0] && dateStr <= h.end_date.split('T')[0]);
-    if (isEmergency) return { style: { ...styles.dayCell, backgroundColor: 'black', color: 'white', fontWeight: 'bold' }, title: isEmergency.reason };
-    
+    if (isEmergency) items.push({ title: "Emergency Closure", color: "black", shortTitle: "Closure" });
+
     const isSaturdayWork = rescheduledSaturdays.find(s => s.working_date.split('T')[0] === dateStr);
-    if (isSaturdayWork) return { style: { ...styles.dayCell, backgroundColor: '#007bff', color: 'white', fontWeight: 'bold' }, title: "Working Saturday" };
-    
-    const semesterStart = events.find(e => e.type === 'semester' && dateStr === e.start);
-    if (semesterStart) return { style: { ...styles.dayCell, backgroundColor: '#05864e', color: 'white', fontWeight: 'bold' }, title: semesterStart.title };
-    
-    const eventForDate = events.find(e => e.type !== 'semester' && (dateStr >= e.start && dateStr <= e.end));
-    if (eventForDate) {
-      let bgColor = eventForDate.color;
-      let displayTitle = dateStr === eventForDate.start ? eventForDate.title : "";
-      return { style: { ...styles.dayCell, backgroundColor: bgColor, color: 'white' }, title: displayTitle };
+    if (isSaturdayWork) items.push({ title: "Working Saturday", color: "#007bff", shortTitle: "Work Sat" });
+
+    const dayEvents = events.filter(e => {
+        if (e.type === 'semester') return dateStr === e.start;
+        return (dateStr >= e.start && dateStr <= e.end);
+    });
+
+    const uniqueDayEvents = dayEvents.filter((ev, idx, arr) => 
+        idx === arr.findIndex((t) => t.title.trim().toLowerCase() === ev.title.trim().toLowerCase())
+    );
+
+    return items.concat(uniqueDayEvents);
+  };
+
+  // Get display title based on view mode
+  const getDisplayTitle = (title, viewMode) => {
+    if (!title) return "";
+    if (viewMode === 'annual') {
+      return getShortTitle(title, 6);
+    } else {
+      return getShortTitle(title, 20);
     }
-    
-    return { style: { ...styles.dayCell, backgroundColor: 'white', color: '#333' }, title: "" };
   };
 
   const generateDays = (year, monthIndex) => {
@@ -247,9 +274,7 @@ const ViewCalendar = () => {
         <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#87CEEB'}}></div><span>Holidays</span></div>
         <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#e810b2'}}></div><span>Society Events</span></div>
         <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#007bff'}}></div><span>Working Saturday</span></div>
-        <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#f39c12'}}></div><span>Student Week / Activities</span></div>
-        <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'black'}}></div><span>Emergency Closure</span></div>
-        <div style={styles.legendItem}><div style={{...styles.colorBox, backgroundColor:'#05864e'}}></div><span>Semester Start</span></div>
+        <div style={styles.legendItem}><div style={{...styles.colorBox, border: '2px solid gold', backgroundColor:'#fff'}}></div><span>Multiple Events</span></div>
       </div>
     </div>
   );
@@ -258,12 +283,12 @@ const ViewCalendar = () => {
     <div style={styles.container}>
       <div style={styles.topBar}>
         <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
-          <h3 style={{margin:0}}>Academic Calendar</h3>
+          <h3 style={{margin:0, color:'#05864e'}}>Academic Calendar</h3>
           {userRole === 'student' && (
             <div style={{position: 'relative'}}>
               <button onClick={() => setShowNotifications(!showNotifications)} style={styles.bellButton}>
                 <FaBell size={18} color="#555" />
-                {unreadCount > 0 && <span style={styles.badge}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
+                {unreadCount > 0 && <span style={styles.badge}>{unreadCount}</span>}
               </button>
               {showNotifications && (
                 <div style={styles.notificationDropdown}>
@@ -329,8 +354,34 @@ const ViewCalendar = () => {
                   </div>
                   <div style={styles.miniDateGrid}>
                     {generateDays(currentYear, mIdx).map((d, idx) => {
-                      const { style } = getEventStyle(d, mIdx, currentYear);
-                      return <div key={idx} style={d ? { ...style, cursor: 'pointer' } : styles.emptyCell} onClick={() => handleDateClick(d, mIdx, currentYear)}>{d}</div>;
+                      const eventsForDate = d ? getEventsForDate(d, mIdx, currentYear) : [];
+                      const hasEvent = eventsForDate.length > 0;
+                      const mainEvent = hasEvent ? eventsForDate[0] : null;
+                      const isMultiple = eventsForDate.length > 1;
+                      const displayTitle = hasEvent ? (isMultiple ? `(${eventsForDate.length})` : getDisplayTitle(mainEvent.title, 'annual')) : "";
+                      
+                      return (
+                        <div key={idx} style={d ? { 
+                          ...styles.dayCell, 
+                          backgroundColor: hasEvent ? (mainEvent?.color || '#05864e') : '#f8f9fa',
+                          color: hasEvent ? 'white' : '#555',
+                          border: isMultiple ? '2px solid gold' : '1px solid #e9ecef',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          minHeight: '34px',
+                          fontWeight: isMultiple ? 'bold' : 'normal'
+                        } : styles.emptyCell} onClick={() => d && handleDateClick(d, mIdx, currentYear)}>
+                          {d}
+                          {d && hasEvent && displayTitle && (
+                            <span style={{ fontSize: '7px', marginTop: '1px', display: 'block', textAlign: 'center', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'white', backgroundColor: 'rgba(0,0,0,0.3)', padding: '1px 2px', borderRadius: '2px' }}>
+                              {displayTitle}
+                            </span>
+                          )}
+                        </div>
+                      );
                     })}
                   </div>
                 </div>
@@ -348,11 +399,20 @@ const ViewCalendar = () => {
             <div style={styles.bigCalendar}>
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d} style={styles.bigWeekHeader}>{d}</div>)}
               {generateDays(currentYear, selectedMonth).map((d, idx) => {
-                const { style, title } = getEventStyle(d, selectedMonth, currentYear);
+                const eventsForDate = d ? getEventsForDate(d, selectedMonth, currentYear) : [];
+                const hasEvent = eventsForDate.length > 0;
+                const mainEvent = hasEvent ? eventsForDate[0] : null;
+                const isMultiple = eventsForDate.length > 1;
+                const displayTitle = hasEvent ? (isMultiple ? `(${eventsForDate.length}) ${getDisplayTitle(mainEvent.title, 'monthly')}` : getDisplayTitle(mainEvent.title, 'monthly')) : "";
+                
                 return (
-                  <div key={idx} onClick={() => handleDateClick(d, selectedMonth, currentYear)} style={d ? { ...styles.bigDayCell, backgroundColor: style.backgroundColor, cursor: 'pointer' } : styles.bigEmptyCell}>
-                    {d && <span style={{...styles.dateNum, color: style.backgroundColor === 'white' ? '#333' : 'white'}}>{d}</span>}
-                    {d && title && <span style={{...styles.eventTitleDisplay, color: 'white'}}>{title}</span>}
+                  <div key={idx} onClick={() => d && handleDateClick(d, selectedMonth, currentYear)} style={d ? { ...styles.bigDayCell, backgroundColor: hasEvent ? (mainEvent?.color || '#05864e') : 'white', cursor: 'pointer', border: isMultiple ? '3px solid gold' : '1px solid #dee2e6', borderRadius: '8px', margin: '2px', transition: 'all 0.2s ease' } : styles.bigEmptyCell}>
+                    {d && <span style={{...styles.dateNum, color: hasEvent ? 'white' : '#333'}}>{d}</span>}
+                    {d && hasEvent && displayTitle && (
+                      <span style={{...styles.eventTitleDisplay, backgroundColor: 'rgba(0,0,0,0.5)', padding: '2px 4px', borderRadius: '4px', fontSize: '9px', marginTop: '4px', display: 'block', textAlign: 'center', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+                        {displayTitle}
+                      </span>
+                    )}
                   </div>
                 );
               })}
@@ -362,23 +422,66 @@ const ViewCalendar = () => {
         ))}
       </div>
 
+      {/* SELECTION MODAL */}
+      {isSelectionModalOpen && (
+          <div style={styles.modalOverlay} onClick={() => setIsSelectionModalOpen(false)}>
+              <div style={styles.selectionModalContent} onClick={e => e.stopPropagation()}>
+                  <div style={styles.selectionHeader}>
+                      <h3 style={{margin:0, fontSize:'18px'}}>Events on {multipleEventsList[0]?.date}</h3>
+                      <FaTimes style={{cursor:'pointer'}} onClick={() => setIsSelectionModalOpen(false)} />
+                  </div>
+                  <div style={styles.selectionBody}>
+                      {multipleEventsList.map((ev, i) => (
+                          <div 
+                            key={i} 
+                            style={{...styles.selectionItem, borderLeft: `5px solid ${ev.color || '#05864e'}`}}
+                            onClick={() => {
+                                setSelectedDateData(ev);
+                                setIsSelectionModalOpen(false);
+                                setIsModalOpen(true);
+                            }}
+                          >
+                              <div style={{flex:1}}>
+                                  <div style={{fontWeight:'bold', fontSize:'14px', color:'#333'}}>{ev.title}</div>
+                                  <div style={{fontSize:'12px', color:'#666'}}>{ev.type?.toUpperCase() || 'EVENT'} • {ev.startTime || 'All Day'}</div>
+                              </div>
+                              <FaArrowRight color="#ccc" />
+                          </div>
+                      ))}
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* DETAIL MODAL */}
       {isModalOpen && selectedDateData && (
         <div style={styles.modalOverlay} onClick={() => setIsModalOpen(false)}>
           <div style={{...styles.modalContent, borderTop: `8px solid ${selectedDateData.color || '#05864e'}`}} onClick={e => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <div style={styles.headerInfo}>
                 <span style={{...styles.typeBadge, backgroundColor: selectedDateData.color || '#05864e'}}>{selectedDateData.isExam ? 'EXAMS' : selectedDateData.isSaturday ? 'RESCHEDULED DAY' : selectedDateData.isEmergency ? 'EMERGENCY' : selectedDateData.isHoliday ? 'HOLIDAY' : selectedDateData.isSemester ? 'SEMESTER' : 'EVENT'}</span>
-                <h3 style={styles.modalTitle}>{selectedDateData.isExam ? 'Exams' : selectedDateData.isSaturday ? 'Working Saturday' : selectedDateData.isEmergency ? 'Emergency Closure' : selectedDateData.title}</h3>
+                <h3 style={styles.modalTitle}>{selectedDateData.title}</h3>
               </div>
               <FaTimes style={styles.closeIcon} onClick={() => setIsModalOpen(false)} />
             </div>
             <div style={styles.modalBody}>
               <div style={styles.infoGridMain}>
                 <div style={styles.infoRow}><FaCalendarAlt style={styles.rowIcon} /><div><strong>Date:</strong> <span>{selectedDateData.date}</span></div></div>
-                <div style={styles.infoRow}><FaStickyNote style={styles.rowIcon} /><div><strong>Info:</strong> <span>{selectedDateData.description || "No further details."}</span></div></div>
+                {selectedDateData.startTime && selectedDateData.startTime !== "N/A" && <div style={styles.infoRow}><FaClock style={styles.rowIcon} /><div><strong>Time:</strong> <span>{selectedDateData.startTime}</span></div></div>}
+                {(selectedDateData.roomNo || selectedDateData.venue) && <div style={styles.infoRow}><FaMapMarkerAlt style={styles.rowIcon} /><div><strong>Venue:</strong> <span>{selectedDateData.roomNo || selectedDateData.venue}</span></div></div>}
+                
+                <div style={styles.infoRow}>
+                    <FaFileExcel style={{...styles.rowIcon, color: '#1D6F42'}} />
+                    <div>
+                        <strong>Details / Schedule:</strong> 
+                        <div style={{marginTop:'8px', padding:'10px', background:'#f8f9fa', borderRadius:'6px', borderLeft:'4px solid #1D6F42', fontSize:'13px', whiteSpace:'pre-wrap', color:'#333', lineHeight:'1.5'}}>
+                            {selectedDateData.description || "No specific instructions for this day."}
+                        </div>
+                    </div>
+                </div>
               </div>
             </div>
-            <button style={{...styles.closeBtn, background: selectedDateData.color || '#05864e'}} onClick={() => setIsModalOpen(false)}>Dismiss</button>
+            <button style={{...styles.closeBtn, background: selectedDateData.color || '#05864e'}} onClick={() => setIsModalOpen(false)}>Close Details</button>
           </div>
         </div>
       )}
@@ -408,27 +511,22 @@ const styles = {
   activeBtn: { padding: '5px 12px', background: '#05864e', color: 'white', borderRadius: '5px', border: 'none', cursor: 'pointer', fontSize: '12px' },
   content: { flex: 1, overflowY: 'auto' },
   annualGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' },
-  miniCard: { border: '1px solid #ddd', borderRadius: '6px', overflow: 'hidden' },
-  miniHeader: { backgroundColor: '#05864e', color: 'white', padding: '2px', textAlign: 'center', fontSize: '11px' },
-  miniWeekRow: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: '#f1f1f1', padding: '2px 0' },
+  miniCard: { border: '1px solid #ddd', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' },
+  miniHeader: { backgroundColor: '#05864e', color: 'white', padding: '4px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold' },
+  miniWeekRow: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: '#f1f1f1', padding: '4px 0' },
   weekDay: { fontSize: '8px', textAlign: 'center', fontWeight: 'bold', color: '#555' },
-  miniDateGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', padding: '2px', gap: '1px' },
-  dayCell: { fontSize: '10px', textAlign: 'center', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '3px' },
+  miniDateGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', padding: '4px', gap: '2px' },
+  dayCell: { fontSize: '10px', textAlign: 'center', height: '34px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', fontWeight: '500', transition: 'all 0.2s ease' },
   emptyCell: { backgroundColor: 'transparent' },
   monthlyContainer: { height: '100%', display: 'flex', flexDirection: 'column' },
   monthNav: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginBottom: '10px' },
   navBtn: { padding: '5px 10px', cursor: 'pointer', border: '1px solid #ddd', background: 'white', borderRadius: '5px' },
-  bigCalendar: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px', backgroundColor: '#ddd' },
-  bigWeekHeader: { backgroundColor: '#05864e', color: 'white', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '12px' },
-  bigDayCell: { minHeight: '95px', padding: '5px', display: 'flex', flexDirection: 'column', backgroundColor: 'white' },
-  bigEmptyCell: { backgroundColor: '#f9f9f9', minHeight: '95px' },
-  dateNum: { fontWeight: 'bold', fontSize: '14px' },
-  eventTitleDisplay: { fontSize: '10px', marginTop: 'auto', textAlign: 'center', padding: '2px', borderRadius: '4px', backgroundColor: 'rgba(0,0,0,0.3)' },
-  legendWrapper: { marginTop: '25px', padding: '15px', borderTop: '2px solid #eee', backgroundColor: '#fdfdfd' },
-  legendHeader: { margin: '0 0 12px 0', fontSize: '15px', color: '#05864e', display: 'flex', alignItems: 'center', gap: '8px' },
-  legendGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' },
-  legendItem: { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#444' },
-  colorBox: { width: '18px', height: '18px', borderRadius: '4px', boxShadow: 'inset 0 0 2px rgba(0,0,0,0.2)' },
+  bigCalendar: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', backgroundColor: 'transparent' },
+  bigWeekHeader: { backgroundColor: '#05864e', color: 'white', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '12px', borderRadius: '6px' },
+  bigDayCell: { minHeight: '95px', padding: '8px', display: 'flex', flexDirection: 'column', backgroundColor: '#fff', border: '1px solid #dee2e6', borderRadius: '8px', margin: '1px', transition: 'all 0.2s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
+  bigEmptyCell: { backgroundColor: '#f9f9f9', minHeight: '95px', borderRadius: '8px', margin: '1px' },
+  dateNum: { fontWeight: 'bold', fontSize: '14px', marginBottom: '4px', display: 'block' },
+  eventTitleDisplay: { fontSize: '9px', marginTop: '4px', padding: '2px 4px', borderRadius: '4px', display: 'block', textAlign: 'center', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 },
   modalContent: { backgroundColor: 'white', borderRadius: '12px', width: '420px', padding: '0', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' },
   modalHeader: { display: 'flex', justifyContent: 'space-between', padding: '20px', backgroundColor: '#f8fafc' },
@@ -440,7 +538,16 @@ const styles = {
   infoGridMain: { display: 'flex', flexDirection: 'column', gap: '15px' },
   infoRow: { display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#475569', fontSize: '14px' },
   rowIcon: { marginTop: '3px', color: '#64748b', fontSize: '16px' },
-  closeBtn: { width: '100%', padding: '14px', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', letterSpacing: '0.5px' }
+  closeBtn: { width: '100%', padding: '14px', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', letterSpacing: '0.5px' },
+  selectionModalContent: { backgroundColor: 'white', borderRadius: '12px', width: '350px', padding: '20px', boxShadow: '0 20px 25px rgba(0,0,0,0.2)' },
+  selectionHeader: { display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', borderBottom:'1px solid #eee', paddingBottom:'10px' },
+  selectionBody: { display:'flex', flexDirection:'column', gap:'10px' },
+  selectionItem: { display:'flex', alignItems:'center', padding:'12px', background:'#f8f9fa', borderRadius:'8px', cursor:'pointer', transition:'transform 0.2s' },
+  legendWrapper: { marginTop: '25px', padding: '15px', borderTop: '2px solid #eee', backgroundColor: '#fdfdfd' },
+  legendHeader: { margin: '0 0 12px 0', fontSize: '15px', color: '#05864e', display: 'flex', alignItems: 'center', gap: '8px' },
+  legendGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' },
+  legendItem: { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#444' },
+  colorBox: { width: '18px', height: '18px', borderRadius: '4px', boxShadow: 'inset 0 0 2px rgba(0,0,0,0.2)' },
 };
 
 export default ViewCalendar;
