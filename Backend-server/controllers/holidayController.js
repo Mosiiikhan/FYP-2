@@ -48,19 +48,18 @@ exports.getHolidays = async (req, res) => {
 };
 
 // 3. Holiday Save Karne Ke Liye
+// 3. Holiday Save Karne Ke Liye (With Student Notifications)
 exports.saveHoliday = async (req, res) => {
     const { definition_id, holiday_name, holiday_type, start_date, end_date, description } = req.body;
     const pool = req.app.locals.db;
 
     if (!pool) return res.status(500).json({ success: false, error: "Database connection failed" });
 
-    // 🟢 Dates ko sahi format mein convert kar rha hai
     const formattedStart = formatToSQLDate(start_date);
     const formattedEnd = formatToSQLDate(end_date);
     
-    // Validation: Agar formatting ke baad bhi date invalid hai toh SQL ko na bhejo
     if (!formattedStart || isNaN(new Date(formattedStart).getTime())) {
-        return res.status(400).json({ success: false, error: "Invalid Start Date format. Please use YYYY-MM-DD or DD/MM/YYYY" });
+        return res.status(400).json({ success: false, error: "Invalid Start Date format." });
     }
 
     const year = new Date(formattedStart).getFullYear();
@@ -69,11 +68,10 @@ exports.saveHoliday = async (req, res) => {
     try {
         transaction = new sql.Transaction(pool);
         await transaction.begin();
-        const request = new sql.Request(transaction);
 
         // 1. Insert into Public_Holidays
-        // 🚩 Ab dbType ki mapping hata di hai kyunke humne DB update kar liya hai
-        await request
+        const holidayRequest = new sql.Request(transaction);
+        await holidayRequest
             .input('name', sql.NVarChar, holiday_name)
             .input('type', sql.NVarChar, holiday_type) 
             .input('start', sql.Date, formattedStart)
@@ -82,9 +80,9 @@ exports.saveHoliday = async (req, res) => {
             .query(`INSERT INTO Public_Holidays (holiday_name, holiday_type, start_date, end_date, description) 
                     VALUES (@name, @type, @start, @end, @desc)`);
 
-        // 2. Insert into Holiday_Occurrences
+        // 2. Insert into Holiday_Occurrences (if definition_id exists)
         if (definition_id && definition_id !== '' && definition_id !== 'undefined') {
-            const occRequest = new sql.Request(transaction); // Naya request for reliability
+            const occRequest = new sql.Request(transaction);
             await occRequest
                 .input('def_id', sql.Int, parseInt(definition_id))
                 .input('occ_year', sql.Int, year)
@@ -94,8 +92,21 @@ exports.saveHoliday = async (req, res) => {
                         VALUES (@def_id, @g_date, @occ_year, @notes)`);
         }
 
+        // 🟢 3. SEND NOTIFICATION TO ALL STUDENTS
+        // Ye logic har student ke liye aik notification entry banaye ga
+        const notifRequest = new sql.Request(transaction);
+        const notifTitle = `Upcoming Holiday: ${holiday_name} 📢`;
+        const notifMsg = `Reminder: University will be closed on ${start_date} for ${holiday_name}.`;
+
+        await notifRequest.query(`
+            INSERT INTO Notifications (user_id, title, message, notification_type, is_read, created_at)
+            SELECT user_id, '${notifTitle}', '${notifMsg}', 'Public', 0, GETDATE() 
+            FROM Users 
+            WHERE role = 'student'
+        `);
+
         await transaction.commit();
-        res.status(201).json({ success: true, message: "Holiday Saved Successfully! ✅" });
+        res.status(201).json({ success: true, message: "Holiday Saved and Students Notified! 🔔 ✅" });
 
     } catch (err) {
         if (transaction) await transaction.rollback();

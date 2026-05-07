@@ -1,5 +1,5 @@
 const { sql } = require('../../config/db');
-const IslamicController = require('../Admin/IslamicHolidaysController');
+// IslamicController import removed as it's now in CalendarController
 
 // 1. GET ALL SOCIETIES
 exports.getSocieties = async (req, res) => {
@@ -94,7 +94,7 @@ exports.updateEvent = async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
-// 4. GET ALL EVENTS (The One True Fix)
+// 4. GET ALL EVENTS (Subscription Logic Only)
 exports.getAllEvents = async (req, res) => {
     try {
         const { studentId, role } = req.query; 
@@ -108,7 +108,6 @@ exports.getAllEvents = async (req, res) => {
         if (isStudent) {
             request.input('sid', sql.Int, parseInt(studentId));
             
-            // 🛡️ Logic: Show Public OR (Private + must match a preference in User_Event_Preferences)
             query = `SELECT AC.event_id as id, AC.event_title as title, AC.start_date as date, 
                             AC.description, S.society_name, AC.color_code as color, 
                             AC.visibility, AC.event_time as time, AC.venue
@@ -136,26 +135,9 @@ exports.getAllEvents = async (req, res) => {
         const result = await request.query(query);
         let dbEvents = result.recordset || [];
 
-        // Step 3: Add Islamic Holidays (Keeping your existing logic)
-        let finalData = [...dbEvents];
-        try {
-            const currentYear = new Date().getFullYear();
-            const islamicHolidays = await IslamicController.getIslamicHolidays(pool, currentYear);
-            
-            if (Array.isArray(islamicHolidays) && islamicHolidays.length > 0) {
-                const formattedHolidays = islamicHolidays.map(h => ({
-                    id: h.id || `ih-${Math.random()}`,
-                    title: h.title,
-                    date: h.date || h.start_date,
-                    color: '#87CEEB',
-                    type: 'holiday',
-                    description: h.description || 'Islamic Holiday'
-                }));
-                finalData = [...finalData, ...formattedHolidays];
-            }
-        } catch (hErr) { console.error("Holiday Error:", hErr.message); }
+        // Note: Islamic Holidays are now handled by CalendarController
+        res.status(200).json(dbEvents);
 
-        res.status(200).json(finalData);
     } catch (err) { 
         res.status(500).json({ success: false, message: "Server Error: " + err.message }); 
     }
