@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react'; 
-import { FaCalendarAlt, FaList, FaChevronLeft, FaChevronRight, FaTimes, FaClock, FaMapMarkerAlt, FaBookOpen, FaExclamationTriangle, FaBriefcase, FaUsers, FaPlus, FaCheckCircle, FaChevronDown, FaInfoCircle, FaHourglassHalf, FaStickyNote, FaCalendarWeek, FaFlagCheckered, FaBell, FaArrowRight, FaFileExcel } from 'react-icons/fa';
+import { FaCalendarAlt, FaList, FaChevronLeft, FaChevronRight, FaTimes, FaClock, FaMapMarkerAlt, FaBookOpen, FaExclamationTriangle, FaBriefcase, FaUsers, FaPlus, FaCheckCircle, FaChevronDown, FaInfoCircle, FaHourglassHalf, FaStickyNote, FaCalendarWeek, FaFlagCheckered, FaBell, FaArrowRight, FaFileExcel, FaIdCard } from 'react-icons/fa';
 
 const ViewCalendar = () => {
   const [viewMode, setViewMode] = useState('annual'); 
@@ -15,7 +15,11 @@ const ViewCalendar = () => {
   const [subscribedNames, setSubscribedNames] = useState([]); 
   const [showDropdown, setShowDropdown] = useState(false);
   const userRole = localStorage.getItem('userRole'); 
-  const studentId = localStorage.getItem('userId');
+
+  // 🚩 Student ID Mismatch Logic
+  const studentIdFromStorage = localStorage.getItem('studentId');
+  const userIdFromStorage = localStorage.getItem('userId');
+  const studentId = (userRole?.toLowerCase() === 'student') ? (studentIdFromStorage || userIdFromStorage) : userIdFromStorage;
 
   const [selectedDateData, setSelectedDateData] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,7 +31,6 @@ const ViewCalendar = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // Helper function to get short title for display based on view mode
   const getShortTitle = (title, maxLength) => {
     if (!title) return "";
     if (title.length <= maxLength) return title;
@@ -81,8 +84,12 @@ const ViewCalendar = () => {
               color: finalColor,
               startTime: item.start_time || "N/A",
               roomNo: item.room_no || "TBA",
+              // 🚩 Fixed description mapping
               description: item.description || item.agenda_description || "",
-              societyName: item.society_name || ""
+              societyName: item.society_name || "",
+              seatNo: item.seat_no || "-",
+              rowNo: item.row_no || "-",
+              courseCode: item.course_code || "N/A"
             };
           });
           combinedEvents = [...formattedRegular];
@@ -192,10 +199,10 @@ const ViewCalendar = () => {
     filteredEvents.forEach(e => {
         let eventData = { ...e, date: formattedDisplayDate };
         const lowerTitle = e.title?.toLowerCase() || "";
-        if (lowerTitle.includes("exam")) {
+        if (lowerTitle.includes("exam") || e.type === 'exam') {
             eventData.isExam = true;
             eventData.examType = lowerTitle.includes("mid") ? "MIDS" : "FINALS";
-            eventData.venue = e.roomNo || e.venue || "TBA";
+            eventData.venue = e.roomNo || "TBA";
         } else if (e.type === 'holiday') {
             eventData.isHoliday = true;
         } else if (e.type === 'semester') {
@@ -223,7 +230,6 @@ const ViewCalendar = () => {
     }
   };
 
-  // Get all events for a specific date
   const getEventsForDate = (day, monthIndex, year) => {
     if (!day) return [];
     const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -247,7 +253,6 @@ const ViewCalendar = () => {
     return items.concat(uniqueDayEvents);
   };
 
-  // Get display title based on view mode
   const getDisplayTitle = (title, viewMode) => {
     if (!title) return "";
     if (viewMode === 'annual') {
@@ -361,19 +366,21 @@ const ViewCalendar = () => {
                       const displayTitle = hasEvent ? (isMultiple ? `(${eventsForDate.length})` : getDisplayTitle(mainEvent.title, 'annual')) : "";
                       
                       return (
-                        <div key={idx} style={d ? { 
-                          ...styles.dayCell, 
-                          backgroundColor: hasEvent ? (mainEvent?.color || '#05864e') : '#f8f9fa',
-                          color: hasEvent ? 'white' : '#555',
-                          border: isMultiple ? '2px solid gold' : '1px solid #e9ecef',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          minHeight: '34px',
-                          fontWeight: isMultiple ? 'bold' : 'normal'
-                        } : styles.emptyCell} onClick={() => d && handleDateClick(d, mIdx, currentYear)}>
+                        <div 
+                          key={idx} 
+                          style={d ? { 
+                            ...styles.dayCell, 
+                            backgroundColor: hasEvent ? (mainEvent?.color || '#05864e') : '#f8f9fa',
+                            color: hasEvent ? 'white' : '#555',
+                            border: isMultiple ? '2px solid gold' : '1px solid #e9ecef',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            minHeight: '34px',
+                            fontWeight: isMultiple ? 'bold' : 'normal'
+                          } : styles.emptyCell} onClick={() => d && handleDateClick(d, mIdx, currentYear)}>
                           {d}
                           {d && hasEvent && displayTitle && (
                             <span style={{ fontSize: '7px', marginTop: '1px', display: 'block', textAlign: 'center', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'white', backgroundColor: 'rgba(0,0,0,0.3)', padding: '1px 2px', borderRadius: '2px' }}>
@@ -422,7 +429,7 @@ const ViewCalendar = () => {
         ))}
       </div>
 
-      {/* SELECTION MODAL */}
+      {/* --- SELECTION MODAL --- */}
       {isSelectionModalOpen && (
           <div style={styles.modalOverlay} onClick={() => setIsSelectionModalOpen(false)}>
               <div style={styles.selectionModalContent} onClick={e => e.stopPropagation()}>
@@ -453,33 +460,78 @@ const ViewCalendar = () => {
           </div>
       )}
 
-      {/* DETAIL MODAL */}
+      {/* --- DETAIL MODAL (Updated with Description Logic) --- */}
       {isModalOpen && selectedDateData && (
         <div style={styles.modalOverlay} onClick={() => setIsModalOpen(false)}>
           <div style={{...styles.modalContent, borderTop: `8px solid ${selectedDateData.color || '#05864e'}`}} onClick={e => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <div style={styles.headerInfo}>
-                <span style={{...styles.typeBadge, backgroundColor: selectedDateData.color || '#05864e'}}>{selectedDateData.isExam ? 'EXAMS' : selectedDateData.isSaturday ? 'RESCHEDULED DAY' : selectedDateData.isEmergency ? 'EMERGENCY' : selectedDateData.isHoliday ? 'HOLIDAY' : selectedDateData.isSemester ? 'SEMESTER' : 'EVENT'}</span>
+                <span style={{...styles.typeBadge, backgroundColor: selectedDateData.color || '#05864e'}}>
+                   {(selectedDateData.isExam || selectedDateData.type === 'exam') ? 'OFFICIAL EXAM SLIP' : selectedDateData.type?.toUpperCase()}
+                </span>
                 <h3 style={styles.modalTitle}>{selectedDateData.title}</h3>
               </div>
               <FaTimes style={styles.closeIcon} onClick={() => setIsModalOpen(false)} />
             </div>
+            
             <div style={styles.modalBody}>
-              <div style={styles.infoGridMain}>
-                <div style={styles.infoRow}><FaCalendarAlt style={styles.rowIcon} /><div><strong>Date:</strong> <span>{selectedDateData.date}</span></div></div>
-                {selectedDateData.startTime && selectedDateData.startTime !== "N/A" && <div style={styles.infoRow}><FaClock style={styles.rowIcon} /><div><strong>Time:</strong> <span>{selectedDateData.startTime}</span></div></div>}
-                {(selectedDateData.roomNo || selectedDateData.venue) && <div style={styles.infoRow}><FaMapMarkerAlt style={styles.rowIcon} /><div><strong>Venue:</strong> <span>{selectedDateData.roomNo || selectedDateData.venue}</span></div></div>}
-                
-                <div style={styles.infoRow}>
-                    <FaFileExcel style={{...styles.rowIcon, color: '#1D6F42'}} />
-                    <div>
-                        <strong>Details / Schedule:</strong> 
-                        <div style={{marginTop:'8px', padding:'10px', background:'#f8f9fa', borderRadius:'6px', borderLeft:'4px solid #1D6F42', fontSize:'13px', whiteSpace:'pre-wrap', color:'#333', lineHeight:'1.5'}}>
-                            {selectedDateData.description || "No specific instructions for this day."}
+              {(selectedDateData.isExam || selectedDateData.type === 'exam') ? (
+                <div style={styles.examSlipContainer}>
+                    <div style={styles.slipHeader}>BIIT EXAMINATION SEATING PLAN</div>
+                    <div style={styles.slipInfoGrid}>
+                        <div style={styles.slipRow}><FaIdCard color="#666" /> <div><strong>Student Name:</strong> <span>{localStorage.getItem('userName') || 'Mohsin Ishfaq'}</span></div></div>
+                        <div style={styles.slipRow}><FaBookOpen color="#666" /> <div><strong>Course:</strong> <span>{selectedDateData.courseCode || 'N/A'} - {selectedDateData.title.replace('Exam: ', '')}</span></div></div>
+                        <div style={styles.slipRow}><FaCalendarAlt color="#666" /> <div><strong>Date:</strong> <span>{selectedDateData.date}</span></div></div>
+                        <div style={styles.slipRow}><FaClock color="#666" /> <div><strong>Time Slot:</strong> <span>{selectedDateData.startTime || 'Check Schedule'}</span></div></div>
+                    </div>
+                    
+                    <div style={styles.seatingHighlight}>
+                        <div style={styles.seatBox}>
+                            <small>ROOM / HALL</small>
+                            <div style={styles.seatValueText}>{selectedDateData.roomNo || 'TBA'}</div>
+                        </div>
+                        <div style={styles.seatBox}>
+                            <small>ROW NO</small>
+                            <div style={styles.seatValueText}>{selectedDateData.rowNo || '-'}</div>
+                        </div>
+                        <div style={{...styles.seatBox, borderRight:'none'}}>
+                            <small>SEAT NO</small>
+                            <div style={styles.seatValueText}>{selectedDateData.seatNo || '-'}</div>
+                        </div>
+                    </div>
+
+                    {/* 🚩 AD Instructions Box in Exam Slip */}
+                    {selectedDateData.description && (
+                      <div style={{marginTop:'15px', padding:'10px', background:'#fff4f4', borderRadius:'8px', borderLeft:'4px solid #dc3545'}}>
+                        <strong style={{fontSize:'12px', color:'#dc3545'}}>Instructions:</strong>
+                        <p style={{fontSize:'13px', margin:'5px 0 0 0', color:'#333', lineHeight:'1.4'}}>
+                          {selectedDateData.description}
+                        </p>
+                      </div>
+                    )}
+
+                    <p style={{fontSize: '10px', color: '#888', marginTop: '15px', textAlign: 'center', fontStyle: 'italic'}}>
+                        * Please bring your official ID Card. Arrive 15 mins early.
+                    </p>
+                </div>
+              ) : (
+                <div style={styles.infoGridMain}>
+                    <div style={styles.infoRow}><FaCalendarAlt style={styles.rowIcon} /><div><strong>Date:</strong> <span>{selectedDateData.date}</span></div></div>
+                    {selectedDateData.startTime && selectedDateData.startTime !== "N/A" && <div style={styles.infoRow}><FaClock style={styles.rowIcon} /><div><strong>Time:</strong> <span>{selectedDateData.startTime}</span></div></div>}
+                    {(selectedDateData.roomNo || selectedDateData.venue) && <div style={styles.infoRow}><FaMapMarkerAlt style={styles.rowIcon} /><div><strong>Venue:</strong> <span>{selectedDateData.roomNo || selectedDateData.venue}</span></div></div>}
+                    
+                    {/* 🚩 AD/Admin Description for Holidays/Meetings/Activities */}
+                    <div style={styles.infoRow}>
+                        <FaFileExcel style={{...styles.rowIcon, color: '#1D6F42'}} />
+                        <div>
+                            <strong>Details / Instructions:</strong> 
+                            <div style={{marginTop:'8px', padding:'10px', background:'#f8f9fa', borderRadius:'6px', borderLeft:'4px solid #1D6F42', fontSize:'13px', whiteSpace:'pre-wrap', color:'#333', lineHeight:'1.5'}}>
+                                {selectedDateData.description || "No specific instructions for this day."}
+                            </div>
                         </div>
                     </div>
                 </div>
-              </div>
+              )}
             </div>
             <button style={{...styles.closeBtn, background: selectedDateData.color || '#05864e'}} onClick={() => setIsModalOpen(false)}>Close Details</button>
           </div>
@@ -515,7 +567,7 @@ const styles = {
   miniHeader: { backgroundColor: '#05864e', color: 'white', padding: '4px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold' },
   miniWeekRow: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: '#f1f1f1', padding: '4px 0' },
   weekDay: { fontSize: '8px', textAlign: 'center', fontWeight: 'bold', color: '#555' },
-  miniDateGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', padding: '4px', gap: '2px' },
+  miniDateGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', padding: '4px', gap: '1px' },
   dayCell: { fontSize: '10px', textAlign: 'center', height: '34px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', fontWeight: '500', transition: 'all 0.2s ease' },
   emptyCell: { backgroundColor: 'transparent' },
   monthlyContainer: { height: '100%', display: 'flex', flexDirection: 'column' },
@@ -548,6 +600,13 @@ const styles = {
   legendGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' },
   legendItem: { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#444' },
   colorBox: { width: '18px', height: '18px', borderRadius: '4px', boxShadow: 'inset 0 0 2px rgba(0,0,0,0.2)' },
+  examSlipContainer: { border: '2px dashed #05864e', padding: '18px', borderRadius: '12px', backgroundColor: '#f9fefc' },
+  slipHeader: { textAlign: 'center', fontWeight: 'bold', fontSize: '14px', color: '#05864e', marginBottom: '15px', borderBottom: '1px solid #e0e0e0', paddingBottom: '8px' },
+  slipInfoGrid: { display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' },
+  slipRow: { display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', color: '#333' },
+  seatingHighlight: { display: 'flex', justifyContent: 'space-between', background: '#05864e', padding: '15px', borderRadius: '10px', color: 'white', textAlign: 'center' },
+  seatBox: { flex: 1, borderRight: '1px solid rgba(255,255,255,0.3)' },
+  seatValueText: { fontSize: '22px', fontWeight: 'bold', marginTop: '5px' },
 };
 
 export default ViewCalendar;
