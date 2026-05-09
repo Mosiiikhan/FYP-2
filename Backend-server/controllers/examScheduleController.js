@@ -38,13 +38,14 @@ exports.uploadDatesheet = async (req, res) => {
                 }
 
                 await transaction.request()
-                    .input('course_id', sql.Int, courseId)
-                    .input('type', sql.VarChar, examType)
-                    .input('date', sql.Date, examDate)
-                    .input('start', sql.Time, startTime)
-                    .input('end', sql.Time, endTime)
-                    .input('room', sql.VarChar, roomNo)
-                    .input('color', sql.VarChar, '#dc3545')
+.input('course_id', sql.Int, courseId)
+.input('type', sql.VarChar, examType)
+.input('date', sql.Date, examDate)
+// sql.Time ki jagah sql.VarChar use karo, ye har kism ki time string accept kar lega
+.input('start', sql.VarChar, row.start_time) 
+.input('end', sql.VarChar, row.end_time)
+.input('room', sql.VarChar, roomNo)
+.input('color', sql.VarChar, '#dc3545')
                     .query(`INSERT INTO Exam_Schedule 
                             (course_id, exam_type, exam_date, start_time, end_time, room_no, color_code) 
                             VALUES (@course_id, @type, @date, @start, @end, @room, @color)`);

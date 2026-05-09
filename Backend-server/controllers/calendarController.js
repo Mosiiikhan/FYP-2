@@ -31,13 +31,14 @@ exports.manageSemester = async (req, res) => {
     }
 };
 
-// 2. 🟢 MAIN FIX: Semester-wise Events Fetching with SEATING PLAN data (course_code, seat_no, row_no)
+// 2. 🟢 MAIN FIX: Semester-wise Events Fetching with Username/RollNo Logic
 exports.getAllEvents = async (req, res) => {
     try {
         const { studentId, role } = req.query; 
         const pool = req.app.locals.db;
         
         const normalizedRole = role ? role.toString().toLowerCase().trim() : '';
+        // studentId (username/rollno) string hai, isliye isay parseInt nahi karna
         const isStudent = (normalizedRole === 'student' && studentId && studentId !== 'undefined');
 
         let query = "";
@@ -77,7 +78,7 @@ exports.getAllEvents = async (req, res) => {
                          NULL as course_code, NULL as seat_no, NULL as row_no
                   FROM Public_Holidays PH`;
 
-        // --- PART 3: FYP Meetings (Synced with AD's Notif Logic) ---
+        // --- PART 3: FYP Meetings ---
         if (isStudent) {
             query += ` UNION ALL
                       SELECT CAST(M.meeting_id AS VARCHAR) as id, 'FYP Meeting: ' + M.title as title, 'meeting' as type, 
@@ -133,13 +134,18 @@ exports.getAllEvents = async (req, res) => {
                       FROM Exam_Schedule e 
                       JOIN Courses c ON e.course_id = c.course_id
                       JOIN Enrollments en ON e.course_id = en.course_id
-                      LEFT JOIN SeatingPlan sp ON e.exam_id = sp.exam_id AND sp.student_id = en.student_id
-                      WHERE en.student_id = @studentId`;
+                      JOIN Students s ON en.student_id = s.student_id 
+                      LEFT JOIN SeatingPlan sp ON e.exam_id = sp.exam_id AND sp.student_id = s.student_id
+                      WHERE s.roll_no = @studentId OR s.student_id = @studentId`; 
         }
 
         const finalSQL = `SELECT * FROM (${query}) AS AllEvents ORDER BY start_date DESC`;
         const request = pool.request();
-        if (isStudent) request.input('studentId', sql.Int, parseInt(studentId));
+
+        if (isStudent) {
+            // studentId (roll no) string hai isliye sql.VarChar use kiya hai
+            request.input('studentId', sql.VarChar, studentId); 
+        }
 
         const result = await request.query(finalSQL);
         let finalData = result.recordset || [];
