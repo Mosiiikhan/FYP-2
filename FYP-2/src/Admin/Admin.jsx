@@ -23,12 +23,16 @@ const Admin = () => {
     navigate("/reschedule-saturdays");
   };
 
-  // 👇 Naya function: Islamic Adjustment page pr jany k liye
   const goToIslamicAdjust = () => {
     navigate("/admin/islamic-adjust");
   };
 
-  // --- 2. STYLES (Aapke original styles preserved hain) ---
+  // 👇 Naya function: Manage Users page pr jany k liye
+  const goToManageUsers = () => {
+    navigate("/admin/manage-users");
+  };
+
+  // --- 2. STYLES ---
   const styles = {
     container: {
       width: '260px',
@@ -124,12 +128,19 @@ const Admin = () => {
           <span>🔄</span> Reschedule Sat
         </button>
 
-        {/* 👇 Naya Button: Islamic Adjustment (Preserving existing style logic) */}
         <button 
           style={getActiveStyle('/admin/islamic-adjust')} 
           onClick={goToIslamicAdjust}
         >
           <span>🌙</span> Islamic Adjust
+        </button>
+
+        {/* 👇 Naya Button: Manage Users */}
+        <button 
+          style={getActiveStyle('/admin/manage-users')} 
+          onClick={goToManageUsers}
+        >
+          <span>👥</span> Manage Users
         </button>
 
       </div>

@@ -24,6 +24,7 @@ import ManageEvents from './SocietyCP/ManageEvents';
 import StudentDashboard from './Student/Student';
 import ADDashboard from './AssistantDirector/ADDashboard';
 import IslamicAdjustment from './Admin/IslamicAdjustment'; // Path check kar lein
+import ManageUsers from './Admin/ManageUsers';
 
 
 
@@ -57,6 +58,7 @@ function App() {
                 <Route path="/emergency-holidays" element={<EmergencyHolidays/>} />
                 <Route path="/admin-calendar" element={<ViewCalendar />} />
                 <Route path="/admin/islamic-adjust" element={<IslamicAdjustment />} />
+                <Route path="/admin/manage-users" element={<ManageUsers/>}/>
             </Route>
         </Route>
 

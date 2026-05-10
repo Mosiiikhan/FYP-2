@@ -15,6 +15,7 @@ const meetingRoutes = require('./routes/meetingRoutes');
 const islamicRoutes = require('./routes/islamicHolidaysRoutes');
 const notificationRoutes = require('./routes/notificationRoutes'); 
 const seatingPlanRoutes = require('./routes/seatingPlanRoutes');
+const userManagementRoutes = require('./routes/userManagementRoutes'); // 👈 ADDED
 
 const app = express();
 
@@ -45,11 +46,12 @@ app.use('/api/enrollment', enrollmentRoutes);
 app.use('/api/emergencyholiday', emergencyholidayRoutes); 
 app.use('/api/saturdays', saturdayRoutes); 
 app.use('/api/events', eventRoutes); 
-app.use('/api/holidays', holidayRoutes); // <--- Is route par call ja rahi hai
+app.use('/api/holidays', holidayRoutes);
 app.use('/api/meetings', meetingRoutes);
 app.use('/api/islamic', islamicRoutes);
 app.use('/api/seating-plan', seatingPlanRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/manage-users', userManagementRoutes); // 👈 ADDED
 
 // ✅ 6. Global Error Handling Middleware
 app.use((err, req, res, next) => {
@@ -65,4 +67,5 @@ app.listen(PORT, () => {
     console.log(`   - Holidays: http://localhost:${PORT}/api/holidays/definitions`);
     console.log(`   - Events:   http://localhost:${PORT}/api/events`);
     console.log(`   - Seating:  http://localhost:${PORT}/api/seating-plan`);
+    console.log(`   - Users:    http://localhost:${PORT}/api/manage-users/all`); // 👈 ADDED
 });
